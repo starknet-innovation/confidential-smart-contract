@@ -1,0 +1,17 @@
+# Cairo / Scarb build output
+/target/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# Env / secrets — never commit real values
+.env
+.env.local
+*.local
+
+# OS / editor cruft
+.DS_Store
+.vscode/
+.idea/

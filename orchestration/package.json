@@ -1,0 +1,14 @@
+{
+  "name": "confidential-counter-orchestration",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SNIP-36 prove -> decode -> execute orchestration for the confidential counter shard.",
+  "scripts": {
+    "transition": "node --experimental-strip-types src/orchestrate.ts"
+  },
+  "dependencies": {
+    "starknet": "^9.0.0"
+  },
+  "//": "VERIFY: proof submission needs a proof-ENABLED starknet.js (getSignedTransaction + execute with {proof, proofFacts}). The SNIP-36 reference impl orchestrates in RUST and submits via the sequencer gateway; a public starknet.js fork was NOT confirmed. If none exists, drive the flow with the Rust `snip36` CLI instead (see README)."
+}

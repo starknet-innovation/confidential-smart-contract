@@ -1,0 +1,14 @@
+[package]
+name = "confidential_counter"
+version = "0.1.0"
+edition = "2024_07"
+
+[dependencies]
+starknet = "2.18.0"
+
+# `allowed-libfuncs-list.name = "all"` is REQUIRED for get_execution_info_v3_syscall
+# (it is not on the audited libfuncs list). See DESIGN.md / snip-36 skill.
+[[target.starknet-contract]]
+allowed-libfuncs-list.name = "all"
+sierra = true
+casm = true
