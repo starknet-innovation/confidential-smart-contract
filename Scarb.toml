@@ -6,6 +6,16 @@ edition = "2024_07"
 [dependencies]
 starknet = "2.18.0"
 
+[dev-dependencies]
+snforge_std = "0.60.0"
+assert_macros = "2.18.0"
+
+[scripts]
+test = "snforge test"
+
+[tool.scarb]
+allow-prebuilt-plugins = ["snforge_std"]
+
 # `allowed-libfuncs-list.name = "all"` is REQUIRED for get_execution_info_v3_syscall
 # (it is not on the audited libfuncs list). See DESIGN.md / snip-36 skill.
 [[target.starknet-contract]]

@@ -113,6 +113,47 @@ fn apply_transition(ref self: ContractState, msg: PublicMessage) {
 
 ---
 
+## Generic framework (v2): frozen dispatcher + confidential pluggable logic
+
+v1 fused the transition logic into the deployed class. v2 makes the logic **pluggable
+and confidential** while keeping the on-chain verifier unchanged.
+
+- **State gains a logic pointer:** `ShardState = { logic_class_hash, app_state[], salt }`,
+  `root = commit(logic_class_hash, app_state, salt)`. The logic identity lives *inside*
+  the commitment — never on-chain. `salt` is **rotated every transition**: each
+  `transition(public_input, private_input, new_salt)` commits the successor under a
+  fresh, caller-supplied high-entropy `new_salt`, so recovering one transition's salt
+  cannot deanonymize any other (framework asserts `new_salt != 0`).
+- **Frozen framework** (`ConfidentialShard`): the virtual `transition` reads
+  `logic_class_hash` from the committed `private_input` and `library_call`s its `step`;
+  the on-chain `apply_transition` is the v1 verifier unchanged (proof-binding + CAS) and
+  never sees the class hash.
+- **`ILogic::step(logic_class_hash, app_state, public_input) -> (next_logic_class_hash,
+  new_app_state, outputs)`** — pure (no storage, no messaging). The logic returns its
+  successor: same hash = self-perpetuate; different = upgrade.
+
+**Enforcement is cryptographic, not an on-chain check:** the CAS pins `old_root` to the
+live anchor, and `old_root` pins `logic_class_hash` (a prover can't swap logic without
+breaking Poseidon preimage resistance). Read the class hash from `private_input`,
+**never** `public_input` — the load-bearing invariant.
+
+**Self-governance + immutability ratchet.** The framework never chooses the successor; it
+relays whatever the logic returns. So a logic fully governs its own mutability: one that
+always returns its own hash is **permanently immutable** (one-way — becoming mutable would
+require an upgrade the immutable logic refuses), while its state keeps evolving. This holds
+ONLY if the framework stays frozen: **no `replace_class`, no admin, no `root` setter** —
+otherwise an immutable logic could be bypassed. The shipped reference logic (`CounterLogic`)
+is itself immutable; **no reference ships an ungated upgrade path** — an upgradeable logic
+must gate its own successor (signature/quorum/allow-list).
+
+**Accepted risks.** Bricking by a bad upgrade (undeclared/incompatible successor →
+permanent fail-closed stall; framework only asserts `next != 0`). Which-logic privacy rests
+on salt entropy + the public set of declared logics (declaring is public — you hide the
+binding, not the code). The framework is the sole L2→L1 emitter; a logic that emits makes
+`proof_facts[7] != 1` → fail-closed.
+
+---
+
 ## Sharp edges (must handle)
 
 1. **Concurrency is serialized; retries cost a proof.** Racing transitions on the same root:

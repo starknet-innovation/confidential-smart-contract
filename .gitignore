@@ -1,5 +1,6 @@
 # Cairo / Scarb build output
 /target/
+.snfoundry_cache/
 
 # Node
 node_modules/

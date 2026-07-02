@@ -1,82 +1,56 @@
 # Orchestration
 
-> The off-chain client that drives the SNIP-36 flow: build the virtual tx →
-> prove → decode the message → broadcast the verifier tx. Lives in
+> The off-chain client that drives the framework's SNIP-36 flow. It is **generic**:
+> the counter is one example plugged into a logic-agnostic SDK. Lives in
 > `orchestration/`. For the Cairo it targets see [`cairo.md`](./cairo.md).
 
-There are **two** orchestration paths in the repo, for two different setups:
+## Layout
 
-| Path | Files | Status |
-|------|-------|--------|
-| **strkd companion** (used on Sepolia) | `orchestration/scripts/*.mjs` | ✅ the real, working flow |
-| **Standalone** (proof server + starknet.js fork) | `orchestration/src/orchestrate.ts`, `requestProof.ts` | 📄 illustrative reference (matches DESIGN.md's original plan; not exercised) |
+| File | Role |
+|------|------|
+| `src/framework.ts` | Generic SDK. `commit`, `transitionCalldata`, `serialize/decodePublicMessage`, `computeMessageHash`, `checkProof`. Encodings are byte-identical to `src/framework.cairo`. |
+| `src/strkd.ts` | `strkd` wallet-companion client (pair, fund, deploy account, declare, `signAndProve`, `waitProof`, `addInvoke`). |
+| `src/rpc.ts` | Read-only RPC helpers + `classHashOf` / `rpcContractClass` (canonical spaced ABI). |
+| `src/examples/counter.ts` | The counter as one `Example` — an immutable dummy (app_state `[count]`; public_input `[step]`). |
+| `src/orchestrate.ts` | Generic driver parameterized by an `Example`; `runTransition(...)` is the reusable core. |
 
-Pick the one that matches your environment. The Sepolia end-to-end test used the
-**strkd companion** path; that is the canonical, verified sequence below.
+## Flow (per transition)
 
-## Prerequisites
+```
+transitionCalldata(public_input, ShardState, new_salt)  # fresh freshSalt() each call (salt rotation)
+  → strkd.signAndProve            (Tx A, virtual; manual resource_bounds)
+  → waitProof                     → {proof, proof_facts, l2_to_l1_messages}
+  → framework.checkProof          # off-chain gate: [7]==1, [8]==compute_message_hash, roots
+  → strkd.addInvoke apply_transition(msg) {proof, proof_facts}   (Tx B)
+  → rpc.waitForTx → get_root()
+```
 
-- Node 22+ and `npm install` inside `orchestration/`.
-- A running **`strkd`** wallet companion (holds keys, signs, and bundles the
-  on-device SNIP-36 prover). Discover its URL and API via `GET /`.
-- strkd Settings: a per-network **testnet RPC** configured for the prover, and a
-  prover build that supports the current Starknet protocol version.
-- A reliable public read RPC for status/balance queries
-  (`https://api.cartridge.gg/x/starknet/sepolia` worked; several others were flaky).
+Genesis is off-chain: `commit({logic_class_hash, app_state₀, salt})`. **Declaring the
+logic class is a prerequisite** — the prover `library_call`s it.
 
-## Non-negotiable rules
+## Adding another application
 
-1. **Never fee-estimate the virtual tx.** Estimation ships the calldata — which
-   *is* the confidential state — to an RPC node. Always set `resource_bounds`
-   manually. (strkd refuses to estimate proof-carrying / virtual txs for this reason.)
-2. **The prover executes the virtual tx**, so its `resource_bounds` must both cover
-   actual gas (e.g. a transition used ~29 524 L1 gas — `l1_gas` can't be 0) *and*
-   fit the account balance (`sum(max_amount × max_price) ≤ balance`).
-3. **Canonical ABI for declares.** `contract_class.abi` must be the spaced form
-   (`formatSpaces(json.stringify(abi))`), not compact `JSON.stringify`, or the node
-   derives a different class hash → a misleading `Account: invalid signature`.
-4. **Keep secrets server-side.** Private inputs and signing keys never touch a browser.
+Write an `ILogic` Cairo class, declare it, and add an `Example` (see
+`orchestration/README.md` for the shape). Pass it to the driver instead of
+`counterExample`; `framework.ts` never changes. That is the point of the refactor —
+the counter is not special.
 
-## The strkd flow (canonical sequence)
+## Non-negotiables (unchanged from v1)
 
-Each step's helper script is in `orchestration/scripts/`. Off-chain compute uses
-starknet.js; wallet actions go through the strkd JSON-RPC over loopback HTTP.
+- Never fee-estimate the virtual / proof-carrying tx — set `resource_bounds` manually
+  (the prover enforces the account balance against them).
+- Canonical ABI on declare (`rpc.rpcContractClass`) or the node derives a different
+  class hash → misleading `invalid signature`.
+- Server-side only; the token and private inputs never reach a browser.
 
-| # | Step | Script(s) |
-|---|------|-----------|
-| 1 | Compute `genesis_root`, `new_root` from `(count, salt)` | `prep.mjs` |
-| 2 | Compute `class_hash` + `compiled_class_hash` from the build | `hashes.mjs` |
-| 3 | Pair / account / fund / deploy account | (direct strkd calls: `companion_requestPairing`, `createAgentAccount`, `requestFunding`, `deployAccount`) |
-| 4 | Build + submit DECLARE (canonical ABI, explicit bounds) | `build_declare_bounds.mjs` |
-| 5 | Build + submit UDC deploy of `ConfidentialCounter(genesis_root)` | `build_deploy.mjs` |
-| 6 | Build + submit `companion_signAndProve` for the virtual `transition` | `build_prove.mjs` |
-| 7 | Poll `companion_proveStatus` → `{proof, proof_facts, l2_to_l1_messages}` | `poll_prove.mjs` |
-| 8 | **Off-chain pre-check**: recompute the message hash, compare to `proof_facts[8]` | `check_proof.mjs` |
-| 9 | Build + submit proof-carrying `apply_transition` (`{proof, proof_facts}`) | `build_txb.mjs` |
-| 10 | Wait for Tx B, confirm `get_root()` advanced to `new_root` | `wait_and_root.mjs` |
+## Verify / run
 
-Step 8 is the safety gate: it catches a wrong `proof_facts` index or message-hash
-formula **before** spending a reverting broadcast.
+```bash
+cd orchestration && npm install
+npm run typecheck        # tsc --noEmit  (currently clean)
+npm run orchestrate      # prints genesis/address; drive the strkd steps (each prompts)
+```
 
-### Utility / diagnostic scripts
-
-Not part of the happy path; kept for debugging and provenance:
-`wait.mjs`, `status.mjs` (tx status/finality), `build_declare.mjs` (the initial
-submit:true declare), `signonly_declare.mjs`, `recompute_declare_hash.mjs`,
-`verify_sig.mjs`, `broadcast_declare.mjs` (used to isolate the ABI/class-hash bug).
-
-## The standalone path (`src/orchestrate.ts`)
-
-Mirrors DESIGN.md's original plan: build the virtual call, set `resourceBounds`
-manually, `requestProof` from an SSE proof server (`requestProof.ts`), decode the
-L2→L1 message, and `account.execute(verifyCall, { proof, proofFacts })`. It assumes
-a **proof-enabled starknet.js fork** (`getSignedTransaction` / `execute` with
-`{proof, proofFacts}`), which was not available in this environment — hence the
-strkd path was used instead. Treat `orchestrate.ts` as a reference to adapt if you
-run your own proof server + fork rather than strkd.
-
-## Config
-
-Copy `orchestration/.env.example` → `.env` and fill RPC URL, account, contract
-address, and the (secret) off-chain state. See `orchestration/README.md` for the
-standalone-path specifics.
+**Not yet exercised on-chain for the framework** — a fresh Sepolia deploy demonstrating
+a logic upgrade + the immutability ratchet is pending (see
+[`../project/STATUS.md`](../project/STATUS.md)).

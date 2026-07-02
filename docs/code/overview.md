@@ -2,73 +2,67 @@
 
 > Map of the codebase. Read this first, then dive into [`cairo.md`](./cairo.md)
 > (the on-chain + virtual Cairo) or [`orchestration.md`](./orchestration.md)
-> (the off-chain client that drives proving and submission).
->
-> For *why* the system is shaped this way, see [`../../DESIGN.md`](../../DESIGN.md)
-> — the architecture source of truth. This doc describes *what the code actually is*.
+> (the off-chain client). For *why* the system is shaped this way, see
+> [`../../DESIGN.md`](../../DESIGN.md). This doc describes *what the code actually is*.
 
 ## What the code implements
 
-A **confidential counter shard**: a Starknet contract whose state (a counter)
-lives **off-chain and is published nowhere**, anchored on-chain by a single
-Poseidon commitment (`root`). State transitions are computed and **proven
-off-chain via SNIP-36**; on-chain the contract only verifies the proof output
-and compare-and-swaps the anchor.
+A **confidential shard framework**: a Starknet contract whose state lives off-chain
+(published nowhere), anchored on-chain by a single Poseidon commitment (`root`).
+State transitions are computed and **proven off-chain via SNIP-36**; on-chain the
+contract only verifies the proof output and compare-and-swaps the anchor.
 
-It was run **end-to-end on Sepolia** (see [`../project/LOG.md`](../project/LOG.md)),
-which confirmed the SNIP-36 details the design could not settle statically.
+The transition **logic is pluggable**: a shard names its governing logic by class
+hash *stored inside the committed state*, and the framework `library_call`s it. So
+which logic runs is confidential and self-enforcing, and logics self-govern their own
+upgrades (and their own immutability). See [`cairo.md`](./cairo.md) for the mechanism.
 
-## The three parts
+## The parts
 
 | Part | Where | Role |
 |------|-------|------|
-| **Virtual `transition`** | `src/contract.cairo` | Proven off-chain inside the SNIP-36 prover. Computes `new_root` from the confidential pre-state and emits `{old_root, new_root, step}` as an L2→L1 message. Never broadcast. |
-| **On-chain `apply_transition`** | `src/contract.cairo` | A real tx carrying `{proof, proofFacts}`. Verifies the proof↔message binding and CAS-advances `root`. |
-| **Orchestration** | `orchestration/` | Off-chain client (TypeScript / Node) that builds the virtual tx, drives proving, decodes the message, and broadcasts the verifier tx. |
-
-Both Cairo entrypoints live on **one class at one address**, so
-`get_contract_address()` matches between the virtual emit and the on-chain
-recompute.
+| **`ConfidentialShard` framework** | `src/framework.cairo` | Frozen, address-pinned trust root. Virtual `transition` dispatcher (proven off-chain) + on-chain `apply_transition` verifier + CAS. Logic-agnostic. |
+| **Logic class** | `src/logics/counter_logic.cairo` | A declared class implementing `ILogic::step`, referenced by class hash from inside the committed state. `CounterLogic` = the reference **immutable dummy** (no upgrade path). |
+| **Types / interfaces** | `src/interfaces.cairo` | `ShardState`, `PublicMessage`, `IShard`, `ILogic`. |
+| **Orchestration** | `orchestration/` | Off-chain client that builds the virtual tx, drives proving, decodes the message, broadcasts the verifier tx. **NOTE: still targets the v1 monolithic contract — needs updating for the framework schema (see [status](../project/STATUS.md)).** |
 
 ## File tree
 
 ```
 confidential-smart-contract/
-├── Scarb.toml                    # Cairo package (allowed-libfuncs = "all")
+├── Scarb.toml
 ├── src/
 │   ├── lib.cairo                 # module declarations
-│   ├── interfaces.cairo          # shared types + ICounterShard trait
-│   └── contract.cairo            # ConfidentialCounter (transition + apply_transition)
-├── orchestration/
-│   ├── package.json              # Node/TypeScript deps (starknet.js)
-│   ├── .env.example              # config template
-│   ├── README.md                 # orchestration-specific notes
-│   ├── src/
-│   │   ├── orchestrate.ts         # idealized standalone flow (proof server + starknet.js fork)
-│   │   └── requestProof.ts        # SSE client for a proof server
-│   └── scripts/                   # the ACTUAL strkd-companion flow used on Sepolia
-└── docs/                          # you are here
+│   ├── interfaces.cairo          # ShardState, PublicMessage, IShard, ILogic
+│   ├── framework.cairo           # ConfidentialShard (frozen dispatcher + verifier)
+│   └── logics/
+│       └── counter_logic.cairo           # CounterLogic (immutable dummy, checked u128)
+├── orchestration/                # off-chain client (v1 flow; see status note above)
+└── docs/                         # you are here
 ```
 
 ## End-to-end data flow
 
 ```
- off-chain (secret)                          Starknet (Sepolia)
- ┌───────────────────┐
- │ PreState{count,   │  private_input
- │          salt}    │──────────────┐
- └───────────────────┘              ▼
-                          ┌──────────────────────┐  proof + proof_facts
-                          │ SNIP-36 prover        │  + L2→L1 message
-                          │ runs virtual          │──────────────────────┐
-                          │ transition()          │  {old_root,new_root,  │
-                          └──────────────────────┘   step}                ▼
-                                                            apply_transition:
-   root: felt252  ◀────────────────────────────────────────  assert proof_facts[8]
-   (the only                                                    == compute_message_hash
-    on-chain state)                                            assert old_root == root  (CAS)
-                                                               root := new_root
+ off-chain (secret)                              Starknet
+ ┌────────────────────────────┐
+ │ ShardState {               │  private_input
+ │   logic_class_hash,        │──────────────┐
+ │   app_state…, salt }       │              ▼
+ └────────────────────────────┘   ┌──────────────────────────┐
+                                   │ SNIP-36 prover           │
+                                   │  transition():           │  proof + proof_facts
+                                   │   old_root = commit(...)  │  + L2→L1 message
+                                   │   library_call(           │─────────────────────┐
+                                   │     logic_class_hash,step)│  {old_root,new_root, │
+                                   │   new_root = commit(...)  │   outputs}           ▼
+                                   └──────────────────────────┘        apply_transition:
+   root: felt252 ◀────────────────────────────────────────────────  assert proof_facts[8]
+   (only on-chain state)                                                == compute_message_hash
+                                                                       assert old_root==root (CAS)
+                                                                       root := new_root
 ```
 
-See [`orchestration.md`](./orchestration.md) for the concrete script-by-script
-sequence, and [`cairo.md`](./cairo.md) for the contract internals.
+The logic class hash never appears on-chain; it is enforced entirely by the
+commitment + the proof. See [`cairo.md`](./cairo.md) and
+[`orchestration.md`](./orchestration.md).

@@ -24,6 +24,109 @@ tx hashes, or [[memory]] items where useful.
 
 ---
 
+## 2026-07-02 — Fix audit finding #2 (ungated reference upgrade)
+
+**Did:** Removed the upgrade path from the reference counter — `CounterLogic` is now an
+immutable dummy (`step` always returns its own class hash and ignores any extra
+`public_input`). Deleted the now-redundant `ImmutableCounterLogic`. Updated the SDK counter
+example (`buildPublicInput` = `[step]`, `nextState` keeps the logic hash; dropped `upgradeTo`)
+and the tests.
+
+**Why / decisions (with the user):** The user chose to make the reference counter immutable
+rather than ship a gated upgradeable variant. No reference logic ships an ungated upgrade
+path, so the permissive pattern can't propagate by copy-paste. The framework still SUPPORTS
+upgrades (a production logic returns a different, self-gated successor from `step`) — it's
+just not demonstrated by a reference.
+
+**State after:** `scarb build` clean; **6 snforge tests pass** (logic immutability + framework
+immutability-through-the-framework + salt rotation + zero-salt guard); typecheck clean.
+Classes now `ConfidentialShard 0x57e64f78…` and `CounterLogic 0x4c5c6dcb…` (changed;
+`ImmutableCounterLogic` removed). **Both audit findings now fixed.**
+
+**Next:** fresh Sepolia deploy demoing salt rotation; optionally a gated upgradeable logic
+example if upgrades are ever wanted.
+
+## 2026-07-02 — Fix audit finding #1 (constant salt reuse)
+
+**Did:** Implemented per-transition salt rotation. `transition` now takes a caller-supplied
+`new_salt: felt252` and commits the successor state under it (`assert new_salt != 0`); the
+current salt still binds `old_root`. So every root uses an independent, fresh, high-entropy
+salt — recovering one no longer cascades across the shard's history. Salt stays a
+framework-level concern; the logic never sees it. Updated the SDK (`framework.ts`:
+`transitionCalldata(…, newSalt)` + `freshSalt()` CSPRNG helper; `examples/counter.ts`:
+`nextState` mirror; `orchestrate.ts`: fresh salt per transition + real `new_root` pre-check).
+
+**Why / decisions:** Chose caller-supplied fresh randomness over deterministic salt chaining
+(`salt_next = poseidon(salt,…)`) — chaining still cascades from a single recovered salt,
+whereas independent per-transition salts fully close the finding.
+
+**State after:** `scarb build` clean; **7 snforge tests pass** (added
+`transition_rejects_zero_new_salt` + rotation assertions); orchestration typecheck clean.
+Framework class hash changed → `0x57e64f78…` (signature change; logics unchanged). Docs +
+STATUS updated; finding #1 marked FIXED.
+
+**Next:** finding #2 (gated reference logic / mark `CounterLogic` non-production); fresh
+Sepolia deploy demoing upgrade + ratchet + salt rotation.
+
+## 2026-07-02 — Generic orchestration SDK, snforge tests, fresh audit
+
+**Did:** (1) Rewrote orchestration as a generic, logic-agnostic SDK — `framework.ts`
+(commit/calldata/message encodings mirroring the Cairo), `strkd.ts` (companion client),
+`rpc.ts` (read helpers), `examples/counter.ts` (the counter as one `Example`),
+`orchestrate.ts` (generic driver parameterized by an Example). Removed the v1 `.mjs`
+scripts; `npm run typecheck` clean. (2) Added snforge tests — **6 passing**: logic `step`
+(increment, u128-overflow revert, upgrade directive, immutability ratchet) + framework
+`transition` (recomputes `commit`, asserts the emitted L2->L1 message, incl. upgrade
+committing the new logic hash). (3) Ran a fresh deep `cairo-auditor` on the framework + logics.
+
+**Audit result (Execution Integrity: FULL):** 0 Critical/High. **1 Medium (conf 78)** —
+constant `salt` reuse: a shard uses one salt for life, so recovering it (feasible only
+under low-entropy salt) cascades to its whole history; fix = rotate salt / require high
+entropy. **1 Low (conf 55)** — reference `CounterLogic`'s upgrade path is ungated
+(successor from `public_input`, no in-logic authorization): fine for a single-custodian
+shard (the chosen self-governance), a hijack primitive for shared state; fix = mark the
+reference non-production / ship a gated variant. All other candidates (message forgery,
+run-a-different-logic, storage corruption, hidden `replace_class`, ratchet bypass,
+cross-shard replay, determinism) dropped as false-positive — **core design confirmed sound**.
+
+**Blockers/surprises:** `MessageToL1.to_address` is `EthAddress` (test fix); `res.json()`
+is typed `unknown` (SDK cast). `apply_transition`'s proof_facts path isn't snforge-testable
+(no proof_facts cheatcode) — covered by the v1 Sepolia run + the SDK `checkProof` mirror.
+
+**State after:** Framework compiles, 6 tests pass, audited (findings unfixed). Orchestration
+generic. Not deployed.
+
+**Next:** salt rotation (finding #1); gated reference logic / mark `CounterLogic`
+non-production (finding #2); fresh Sepolia deploy demoing an upgrade + the ratchet.
+
+## 2026-07-02 — Generic framework refactor (v2: ConfidentialShard + pluggable logic)
+
+**Did:** Refactored the monolithic `ConfidentialCounter` into a frozen, logic-agnostic
+framework (`ConfidentialShard`) plus pluggable logic classes. The confidential state
+now carries `logic_class_hash`; the virtual `transition` `library_call`s the committed
+logic's `step`; the on-chain `apply_transition` is unchanged (proof-binding + CAS) and
+never sees the class hash. Added `CounterLogic` (upgradeable, checked `u128`) and
+`ImmutableCounterLogic` (ratchet). Removed `contract.cairo`. Compiles (3 classes).
+
+**Why / decisions (with the user):** Design "B" (library_call to a class hash), but the
+class hash lives *inside the confidential commitment* rather than on-chain — so which
+logic governs a shard is confidential and self-enforcing (CAS pins `old_root`, which
+pins the class hash). Upgrades are self-governed by the logic (option a): `step` returns
+its successor; a logic that always returns its own hash is permanently immutable (a
+one-way ratchet). Bricking-by-bad-upgrade explicitly accepted. The framework must stay
+frozen (no `replace_class`/admin/`root` setter) — load-bearing for the immutability guarantee.
+
+**Blockers / surprises:** The library dispatcher shares `ILogicDispatcherTrait` (there is
+no `ILogicLibraryDispatcherTrait`) — one import fix.
+
+**State after:** Framework compiles; class hashes recorded in [`STATUS.md`](./STATUS.md).
+Audit finding #1 (unbounded arithmetic) addressed in the reference logics via checked
+`u128`; finding #2 (app-logic binding) is now handled by the commitment. Orchestration
+still targets v1 and needs rewriting.
+
+**Next:** Rewrite orchestration for the framework schema; fresh Sepolia deploy demoing a
+logic upgrade + the immutability ratchet; snforge tests; re-audit the framework.
+
 ## 2026-07-02 — End-to-end SNIP-36 test on Sepolia
 
 **Did:** Ran the full flow on Sepolia via the `strkd` wallet companion — created &

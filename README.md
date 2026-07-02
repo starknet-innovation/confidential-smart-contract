@@ -5,11 +5,12 @@ A Starknet contract whose **state lives off-chain** (published nowhere) and is
 off-chain via SNIP-36** virtual block proving. On-chain, Starknet only verifies a
 proof and compare-and-swaps the anchor. Validium-style, but confidential.
 
-**Status:** ✅ **verified end-to-end on Sepolia (2026-07-02).** A full SNIP-36
-round-trip — declare → deploy → off-chain prove of the virtual `transition` →
-on-chain `apply_transition` that verified the proof and CAS-advanced the root — ran
-on Sepolia via the `strkd` wallet companion. Compiles on Scarb/Cairo 2.18. **Not yet
-unit-tested or audited** (see [status](docs/project/STATUS.md)).
+**Status:** v1 (monolithic counter) ✅ **verified end-to-end on Sepolia (2026-07-02)**. **v2**
+is a generic framework — a frozen dispatcher + **confidential pluggable logic** (the governing
+logic's class hash lives inside the committed state). It **compiles** (Scarb/Cairo 2.18), has a
+**generic orchestration SDK**, **6 passing snforge tests**, and a **clean deep audit** (0
+Critical/High; both findings fixed — per-transition salt rotation + an immutable reference
+logic). **Pending a fresh Sepolia deploy** (see [status](docs/project/STATUS.md)).
 
 ---
 
@@ -38,7 +39,7 @@ confidential-smart-contract/
 ├── README.md                 # ← you are here: the navigation hub
 ├── DESIGN.md                 # architecture (source of truth)
 ├── Scarb.toml                # Cairo package
-├── src/                      # Cairo: contract + virtual function + types
+├── src/                      # Cairo: framework (ConfidentialShard) + pluggable logics + types
 ├── orchestration/            # off-chain client (TypeScript / Node, strkd flow)
 └── docs/
     ├── code/                 # documentation of the code
