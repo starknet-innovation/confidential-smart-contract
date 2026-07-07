@@ -6,6 +6,6 @@
 //! committed state, so which logic governs a shard is confidential and self-enforcing.
 //! Logics self-govern their own upgrades (and their own immutability). See DESIGN.md.
 
-pub mod interfaces;
 pub mod framework;
+pub mod interfaces;
 pub mod logics;

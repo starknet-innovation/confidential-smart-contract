@@ -1,7 +1,7 @@
 # Orchestration — generic framework SDK
 
-Drives the confidential shard framework off-chain. **Logic-agnostic:** the counter is
-just one example (`src/examples/counter.ts`); swap in another `Example` to drive a
+Drives the confidential shard framework off-chain. **Logic-agnostic:** the counter and
+private claim are examples (`src/examples/*.ts`); swap in another `Example` to drive a
 different application through the same framework.
 
 ```
@@ -12,7 +12,10 @@ src/
 ├── strkd.ts              # strkd wallet-companion client (pair, fund, declare, signAndProve, addInvoke)
 ├── rpc.ts                # read-only RPC helpers + class-hash / RPC-contract-class builders
 ├── examples/
-│   └── counter.ts        # the counter as ONE Example — immutable dummy (app_state=[count]; public_input=[step])
+│   ├── types.ts          # generic Example interface consumed by the driver
+│   ├── counter.ts        # immutable dummy (app_state=[count]; public_input=[step])
+│   ├── private_claim.ts  # confidential allowlist claim (private table; public_input=[claimant])
+│   └── private_claim.test.ts  # node:test parity check: nextState ↔ Cairo step vectors
 └── orchestrate.ts        # generic driver, parameterized by an Example (counter wired in main())
 ```
 
@@ -42,12 +45,17 @@ export function myExample(logicClassHash: bigint): Example {
     logicClassHash,
     genesisState: (salt) => ({ logicClassHash, appState: /* encode initial state */ [], salt }),
     buildPublicInput: (action) => /* encode action */ [],
+    nextState: (prev, action, newSalt) => /* mirror ILogic::step */ prev,
     describe: (s) => /* human view */ "",
   };
 }
 ```
 
 Pass it to the driver instead of `counterExample`. `framework.ts` never changes.
+
+Because `nextState` must mirror your Cairo `step` exactly (the pre-broadcast `new_root`
+check depends on it), add a `*.test.ts` next to your example asserting the mirror against
+the same vectors your Cairo tests use — see `examples/private_claim.test.ts`.
 
 ## Non-negotiables
 
@@ -63,6 +71,7 @@ Pass it to the driver instead of `counterExample`. `framework.ts` never changes.
 cp .env.example .env      # fill strkd URL/token, account, salt
 npm install
 npm run typecheck         # tsc --noEmit
+npm test                  # node --test: example ↔ Cairo parity (private_claim.test.ts)
 npm run orchestrate       # prints genesis/address; drive the strkd steps (each prompts)
 ```
 

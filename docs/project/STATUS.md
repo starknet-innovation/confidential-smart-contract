@@ -3,9 +3,9 @@
 > Current-state snapshot: what's done, in flight, next, risks. Keep current — see
 > [`PROCESS.md`](./PROCESS.md). History is in [`LOG.md`](./LOG.md).
 
-**Last updated:** 2026-07-02
-**Phase:** Generic framework implemented, tested (6 snforge tests pass), audited (deep, both findings fixed), and given a generic orchestration SDK. v1 verified on Sepolia. Framework not yet deployed.
-**One-line state:** Frozen framework + confidential pluggable logic; compiles, 6 tests pass, deep audit = 0 Critical/High and **both findings FIXED** (per-transition salt rotation; reference `CounterLogic` made immutable — no ungated upgrade ships). Next: a fresh Sepolia deploy.
+**Last updated:** 2026-07-07
+**Phase:** Generic framework implemented, tested (16 snforge tests pass + orchestration parity tests), audited (deep, both findings fixed), and given a generic orchestration SDK with counter + private-claim examples. v1 verified on Sepolia. Framework not yet deployed.
+**One-line state:** Frozen framework + confidential pluggable logic; compiles, 16 tests pass, deep audit = 0 Critical/High and **both findings FIXED** (per-transition salt rotation; immutable reference logics — no ungated upgrade ships). Next: a fresh Sepolia deploy.
 
 ---
 
@@ -16,8 +16,9 @@
 - [x] Deep security audit of v1 — 0 Critical/High/Medium; 2 low-confidence notes (unbounded `count+step` arithmetic; proof under-binding to app logic).
 - [x] **v2 generic framework** (`ConfidentialShard`) — frozen dispatcher + logic-agnostic verifier; confidential `logic_class_hash` in the committed state; `library_call` to the committed logic; self-governing upgrades + immutability ratchet. Compiles on Scarb/Cairo 2.18.
 - [x] Reference logic: `CounterLogic` — an **immutable** dummy, checked `u128` (addresses finding #1); ships no upgrade path (addresses finding #2). (`ImmutableCounterLogic` merged away — now redundant.)
-- [x] **Generic orchestration SDK** (`orchestration/src/`): `framework.ts` (logic-agnostic commit/calldata/message), `strkd.ts`, `rpc.ts`, `examples/counter.ts` (counter = one Example), `orchestrate.ts` driver. Typecheck clean; v1 `.mjs` scripts removed.
-- [x] **snforge tests — 6 passing**: `CounterLogic` `step` (increment/self-perpetuate, immutability, u128-overflow revert) + framework `transition` (commit determinism + `library_call` dispatch + message + salt rotation + immutability-through-the-framework + zero-salt rejection).
+- [x] Reference logic: `PrivateClaimLogic` — an **immutable confidential allowlist claim** example. Private state carries `[total_claimed, n, account, allocation, claimed, ...]`; public input is `[claimant]`; outputs are `[claimant, allocation, total_claimed_after]`.
+- [x] **Generic orchestration SDK** (`orchestration/src/`): `framework.ts` (logic-agnostic commit/calldata/message), `strkd.ts`, `rpc.ts`, `examples/types.ts`, `examples/counter.ts`, `examples/private_claim.ts`, `orchestrate.ts` driver. Typecheck clean; v1 `.mjs` scripts removed.
+- [x] **snforge tests — 16 passing**: `CounterLogic` `step` (increment/self-perpetuate, immutability, u128-overflow revert) + `PrivateClaimLogic` `step` (eligible claim, first-row claim, double-claim rejection, missing-claimant rejection, empty-table rejection, bad-state-length rejection, only-first-duplicate-claimed, two-claim accumulation, u128-overflow revert) + framework `transition` (commit determinism + `library_call` dispatch + message + salt rotation + immutability-through-the-framework + private-claim dispatch + zero-salt rejection). Off-chain parity locked by orchestration `npm test` (`private_claim.test.ts` mirrors the Cairo vectors).
 - [x] **Fixed both audit findings** — #1 salt reuse (per-transition rotation) and #2 ungated reference upgrade (`CounterLogic` made immutable); see Open audit findings.
 - [x] **Deep re-audit of the framework** — 0 Critical/High; findings below. Confirmed: `library_call` can't spoof `from_address`, sole-emitter holds (`proof_facts[7]==1`), logic is commitment-pinned (not from public_input), framework is frozen. v1 finding #2 (app-logic binding) closed by the commitment.
 
@@ -32,7 +33,7 @@
 
 ## Next / backlog 📋
 
-1. **Fresh Sepolia deploy** of the framework: declare `ConfidentialShard` + `CounterLogic`, `genesis_root = commit(...)`, deploy, prove, apply. Demonstrate **salt rotation** on-chain (the one path snforge can't cover — `apply_transition`'s proof_facts).
+1. **Fresh Sepolia deploy** of the framework: declare `ConfidentialShard` + example logics, `genesis_root = commit(...)`, deploy, prove, apply. Demonstrate **salt rotation** on-chain (the one path snforge can't cover — `apply_transition`'s proof_facts).
 2. **DA plan for non-toy state** (unchanged from v1 — DESIGN.md sharp edges).
 3. **(If/when upgrades are wanted)** ship a *gated* upgradeable logic (signature/quorum/allow-list) as a separate example — the framework supports it; no reference ships it today.
 
@@ -52,5 +53,6 @@
 |-------|------|
 | `ConfidentialShard` | `0x57e64f78bccd4ccecfc18b8f86d31a7739f17432cdbbb50b05ace9b0e231144` |
 | `CounterLogic` | `0x4c5c6dcbf512c0e1caf1a72e12f5d94b38d38818391cec90ecf3f26f7b331e8` |
+| `PrivateClaimLogic` | `0x6f11d271f0b0e24c0d11fbfcba1ca99bff84138c97310437019e0d9a792788` |
 
 **v1 monolithic deployment (Sepolia, historical):** contract `0x285b651f…`, class `0x7c0bbb31…`, account `0x04078aa8…` (see [`LOG.md`](./LOG.md)).
