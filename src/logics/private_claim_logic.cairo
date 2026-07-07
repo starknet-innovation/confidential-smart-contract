@@ -38,6 +38,11 @@ pub mod PrivateClaimLogic {
             app_state: Array<felt252>,
             public_input: Array<felt252>,
         ) -> (felt252, Array<felt252>, Array<felt252>) {
+            // Early length guards before any .at() to produce clear errors instead of
+            // index-out-of-bounds panics. Mirrors the documented expectations.
+            assert!(public_input.len() == 1, "bad_public_input_len");
+            assert!(app_state.len() >= HEADER_LEN, "bad_state_len");
+
             let claimant = *public_input.at(0);
             let total_claimed: u128 = (*app_state.at(0)).try_into().expect('total not u128');
             let n: usize = (*app_state.at(1)).try_into().expect('n not usize');
@@ -67,7 +72,7 @@ pub mod PrivateClaimLogic {
                 rows.append(account);
                 rows.append(row_allocation);
                 rows.append(next_claimed);
-            };
+            }
 
             assert!(found, "claimant_missing");
 
@@ -76,7 +81,7 @@ pub mod PrivateClaimLogic {
             let mut new_state: Array<felt252> = array![new_total.into(), n.into()];
             for x in rows.span() {
                 new_state.append(*x);
-            };
+            }
 
             (logic_class_hash, new_state, array![claimant, allocation.into(), new_total.into()])
         }

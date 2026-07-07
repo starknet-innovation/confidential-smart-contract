@@ -68,3 +68,11 @@ test("malformed state length throws", () => {
   const bad = { ...ex.genesisState(SALT), appState: [0n, 2n, 0xAn, 100n, 0n] };
   assert.throws(() => ex.nextState(bad, { claimant: 0xAn }, NEW_SALT), /state length/);
 });
+
+test("u128 overflow on total matches Cairo revert behavior", () => {
+  const ex = privateClaimExample(LOGIC, [{ account: 0xBn, allocation: 1n }]);
+  const MAX = (1n << 128n) - 1n;
+  // total_claimed already at u128::MAX; adding allocation must throw (mirrors Cairo checked add)
+  const bad = { ...ex.genesisState(SALT), appState: [MAX, 1n, 0xBn, 1n, 0n] };
+  assert.throws(() => ex.nextState(bad, { claimant: 0xBn }, NEW_SALT), /u128 overflow/);
+});

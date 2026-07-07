@@ -15,12 +15,11 @@
 #[starknet::contract]
 pub mod ConfidentialShard {
     use core::poseidon::poseidon_hash_span;
-    use starknet::{ContractAddress, get_contract_address};
-    use starknet::syscalls::{send_message_to_l1_syscall, get_execution_info_v3_syscall};
-    use starknet::SyscallResultTrait;
     use starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
+    use starknet::syscalls::{get_execution_info_v3_syscall, send_message_to_l1_syscall};
+    use starknet::{ContractAddress, SyscallResultTrait, get_contract_address};
     use crate::interfaces::{
-        IShard, ShardState, PublicMessage, ILogicLibraryDispatcher, ILogicDispatcherTrait,
+        ILogicDispatcherTrait, ILogicLibraryDispatcher, IShard, PublicMessage, ShardState,
     };
 
     // SNIP-36 constants — VERIFIED end-to-end on Sepolia 2026-07-02. proof_facts[7]
@@ -133,7 +132,7 @@ pub mod ConfidentialShard {
         let mut data: Array<felt252> = array![logic_class_hash, app_state.len().into()];
         for x in app_state.span() {
             data.append(*x);
-        };
+        }
         data.append(salt);
         poseidon_hash_span(data.span())
     }
@@ -147,7 +146,7 @@ pub mod ConfidentialShard {
         let mut data: Array<felt252> = array![from.into(), MSG_TO_ADDRESS, payload.len().into()];
         for f in payload.span() {
             data.append(*f);
-        };
+        }
         poseidon_hash_span(data.span())
     }
 }

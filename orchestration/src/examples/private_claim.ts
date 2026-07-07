@@ -17,6 +17,20 @@ import type { Example } from "./types.ts";
 const ROW_WIDTH = 3;
 const HEADER_LEN = 2;
 
+const U128_MAX = (1n << 128n) - 1n;
+
+function assertU128(x: bigint, label = "value") {
+  if (x < 0n || x > U128_MAX) throw new Error(`${label} not u128`);
+}
+
+function checkedU128Add(a: bigint, b: bigint): bigint {
+  assertU128(a, "lhs");
+  assertU128(b, "rhs");
+  const sum = a + b;
+  if (sum > U128_MAX) throw new Error("u128 overflow");
+  return sum;
+}
+
 export type ClaimRow = {
   account: bigint;
   allocation: bigint;
@@ -53,6 +67,7 @@ export function privateClaimExample(logicClassHash: bigint, rows: ClaimRow[], to
       if (prev.appState.length !== HEADER_LEN + n * ROW_WIDTH) {
         throw new Error("bad state length");
       }
+      assertU128(prev.appState[0], "total_claimed");
       const nextAppState = [...prev.appState];
 
       for (let i = 0; i < n; i += 1) {
@@ -61,7 +76,8 @@ export function privateClaimExample(logicClassHash: bigint, rows: ClaimRow[], to
 
         if (prev.appState[base + 2] !== 0n) throw new Error("already claimed");
         const allocation = prev.appState[base + 1];
-        nextAppState[0] = prev.appState[0] + allocation;
+        assertU128(allocation, "allocation");
+        nextAppState[0] = checkedU128Add(prev.appState[0], allocation);
         nextAppState[base + 2] = 1n;
         return { logicClassHash: prev.logicClassHash, appState: nextAppState, salt: newSalt };
       }

@@ -7,18 +7,18 @@
 //! verified for v1 on Sepolia — so it isn't unit-tested here; the off-chain SDK
 //! `checkProof` mirrors compute_message_hash for the pre-broadcast gate.)
 
-use snforge_std::{
-    declare, ContractClassTrait, DeclareResultTrait, spy_messages_to_l1,
-    MessageToL1SpyAssertionsTrait, MessageToL1,
-};
 use confidential_counter::interfaces::{IShardDispatcher, IShardDispatcherTrait, ShardState};
 use core::poseidon::poseidon_hash_span;
+use snforge_std::{
+    ContractClassTrait, DeclareResultTrait, MessageToL1, MessageToL1SpyAssertionsTrait, declare,
+    spy_messages_to_l1,
+};
 
 fn commit(logic_class_hash: felt252, app_state: Span<felt252>, salt: felt252) -> felt252 {
     let mut data: Array<felt252> = array![logic_class_hash, app_state.len().into()];
     for x in app_state {
         data.append(*x);
-    };
+    }
     data.append(salt);
     poseidon_hash_span(data.span())
 }
@@ -111,7 +111,9 @@ fn transition_dispatches_private_claim_logic() {
     };
 
     let expected_old = commit(logic_class_hash, array![0, 2, 0xA, 100, 0, 0xB, 50, 0].span(), salt);
-    let expected_new = commit(logic_class_hash, array![50, 2, 0xA, 100, 0, 0xB, 50, 1].span(), new_salt);
+    let expected_new = commit(
+        logic_class_hash, array![50, 2, 0xA, 100, 0, 0xB, 50, 1].span(), new_salt,
+    );
 
     let mut spy = spy_messages_to_l1();
     shard.transition(array![0xB], state, new_salt);

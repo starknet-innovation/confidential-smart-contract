@@ -11,6 +11,20 @@ import type { Example } from "./types.ts";
 
 type CounterAction = { step: bigint };
 
+const U128_MAX = (1n << 128n) - 1n;
+
+function assertU128(x: bigint, label = "value") {
+  if (x < 0n || x > U128_MAX) throw new Error(`${label} not u128`);
+}
+
+function checkedU128Add(a: bigint, b: bigint): bigint {
+  assertU128(a, "lhs");
+  assertU128(b, "rhs");
+  const sum = a + b;
+  if (sum > U128_MAX) throw new Error("u128 overflow");
+  return sum;
+}
+
 /** app_state = [count]; public_input = [step]. Immutable — logic never changes. */
 export function counterExample(logicClassHash: bigint, initialCount = 0n): Example {
   return {
@@ -18,11 +32,16 @@ export function counterExample(logicClassHash: bigint, initialCount = 0n): Examp
     logicClassHash,
     genesisState: (salt) => ({ logicClassHash, appState: [initialCount], salt }),
     buildPublicInput: (action) => [(action as CounterAction).step],
-    nextState: (prev, action, newSalt) => ({
-      logicClassHash: prev.logicClassHash, // immutable: successor is always the same logic
-      appState: [prev.appState[0] + (action as CounterAction).step], // count += step
-      salt: newSalt, // rotated blinding
-    }),
+    nextState: (prev, action, newSalt) => {
+      const step = (action as CounterAction).step;
+      assertU128(prev.appState[0], "count");
+      assertU128(step, "step");
+      return {
+        logicClassHash: prev.logicClassHash, // immutable: successor is always the same logic
+        appState: [checkedU128Add(prev.appState[0], step)], // count += step (checked, matches Cairo)
+        salt: newSalt, // rotated blinding
+      };
+    },
     describe: (s) => `count=${s.appState[0]} (logic=${"0x" + s.logicClassHash.toString(16)})`,
   };
 }

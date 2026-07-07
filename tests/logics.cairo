@@ -1,8 +1,8 @@
 //! Unit tests for the reference `CounterLogic` (`step`) — a pure, immutable state
 //! transition. Deploy the logic, call `step`, assert.
 
-use snforge_std::{declare, ContractClassTrait, DeclareResultTrait};
 use confidential_counter::interfaces::{ILogicDispatcher, ILogicDispatcherTrait};
+use snforge_std::{ContractClassTrait, DeclareResultTrait, declare};
 
 fn deploy(name: ByteArray) -> ILogicDispatcher {
     let contract = declare(name).unwrap().contract_class();
