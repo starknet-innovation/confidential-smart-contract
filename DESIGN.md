@@ -142,9 +142,10 @@ relays whatever the logic returns. So a logic fully governs its own mutability: 
 always returns its own hash is **permanently immutable** (one-way — becoming mutable would
 require an upgrade the immutable logic refuses), while its state keeps evolving. This holds
 ONLY if the framework stays frozen: **no `replace_class`, no admin, no `root` setter** —
-otherwise an immutable logic could be bypassed. The shipped reference logic (`CounterLogic`)
-is itself immutable; **no reference ships an ungated upgrade path** — an upgradeable logic
-must gate its own successor (signature/quorum/allow-list).
+otherwise an immutable logic could be bypassed. The shipped reference logics
+(`CounterLogic`, `PrivateClaimLogic`) are themselves immutable; **no reference ships an
+ungated upgrade path** — an upgradeable logic must gate its own successor
+(signature/quorum/allow-list).
 
 **Accepted risks.** Bricking by a bad upgrade (undeclared/incompatible successor →
 permanent fail-closed stall; framework only asserts `next != 0`). Which-logic privacy rests
@@ -203,24 +204,22 @@ message (the value we assert against). Reference impl:
 
 ---
 
-## Open decisions
+## Current implementation choices / open decisions
 
-1. **Concrete example state** for the first scaffold. Default: **private key→balance map with
-   confidential transfers** (naturally per-user, sidesteps the DA problem).
-2. **Anchor type:** plain Poseidon commitment (start) vs Merkle tree (only if proving cost forces it).
-3. **DA plan** — per-user vs shared; the load-bearing decision.
-4. **Target network** — Sepolia expected for first deploy; needs a v0.8+ RPC and a prover backend
+1. **Concrete examples:** `CounterLogic` is the minimal immutable dummy;
+   `PrivateClaimLogic` is the first richer confidential-state showcase. A private
+   key→balance map with confidential transfers remains a natural future example.
+2. **Anchor type:** plain Poseidon commitment (current) vs Merkle tree (only if proving cost forces it).
+3. **DA plan** — per-user vs shared; the load-bearing decision for any non-toy shared state.
+4. **Target network** — Sepolia expected for framework deploy; needs a v0.8+ RPC and a prover backend
    (~18 GB RAM) for proofs.
 
 ## Next steps
 
-1. Pick the example state + confirm commitment-vs-tree.
-2. Scaffold `transition` (virtual) + `apply_transition` (on-chain) Cairo, using
-   `cairo-contract-authoring`; verify syscall/proof_facts details against the reference impl.
-3. Scaffold starknet.js orchestration (manual `resourceBounds`, prove, decode message, execute),
-   using `starknet-js`.
-4. Tests with `cairo-testing`; then a `cairo-auditor` pass (unaudited crypto + confidential state
-   = review before any value).
+1. Fresh Sepolia deploy of the v2 framework and example logics.
+2. Prove/apply at least one framework transition on Sepolia to exercise `apply_transition`'s
+   proof-facts path with salt rotation.
+3. Decide the DA plan before treating any shared/global private state as production-relevant.
 
 ---
 

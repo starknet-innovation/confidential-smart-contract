@@ -99,6 +99,38 @@ fn transition_keeps_logic_immutable_despite_extra_public_input() {
 }
 
 #[test]
+fn transition_dispatches_private_claim_logic() {
+    let logic_class_hash = logic_hash("PrivateClaimLogic");
+    let shard = deploy_shard();
+
+    let salt = 77;
+    let new_salt = 456;
+    // app_state = [total_claimed, n, account_0, allocation_0, claimed_0, ...]
+    let state = ShardState {
+        logic_class_hash, app_state: array![0, 2, 0xA, 100, 0, 0xB, 50, 0], salt,
+    };
+
+    let expected_old = commit(logic_class_hash, array![0, 2, 0xA, 100, 0, 0xB, 50, 0].span(), salt);
+    let expected_new = commit(logic_class_hash, array![50, 2, 0xA, 100, 0, 0xB, 50, 1].span(), new_salt);
+
+    let mut spy = spy_messages_to_l1();
+    shard.transition(array![0xB], state, new_salt);
+
+    spy
+        .assert_sent(
+            @array![
+                (
+                    shard.contract_address,
+                    MessageToL1 {
+                        to_address: 0_felt252.try_into().unwrap(),
+                        payload: array![expected_old, expected_new, 3, 0xB, 50, 50],
+                    },
+                ),
+            ],
+        );
+}
+
+#[test]
 #[should_panic]
 fn transition_rejects_zero_new_salt() {
     let logic_class_hash = logic_hash("CounterLogic");

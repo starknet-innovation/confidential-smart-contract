@@ -24,8 +24,8 @@ pins the class hash via Poseidon). Logics choose their own successor, so they
 ## Package (`Scarb.toml`)
 
 `allowed-libfuncs = "all"` (required for `get_execution_info_v3_syscall`). Builds on
-Scarb / Cairo **2.18**. `scarb build` emits two classes: `ConfidentialShard` and
-`CounterLogic`.
+Scarb / Cairo **2.18**. `scarb build` emits three classes: `ConfidentialShard`,
+`CounterLogic`, and `PrivateClaimLogic`.
 
 ## Types & interfaces (`src/interfaces.cairo`)
 
@@ -75,14 +75,20 @@ prefix prevents split ambiguity). Must be byte-identical off-chain.
 **Do not add** `replace_class`, an owner, or a `root` setter to the framework —
 freezing it is what makes a shard's logic-immutability guarantee real.
 
-## Reference logic (`src/logics/`)
+## Reference logics (`src/logics/`)
 
-- **`CounterLogic`** — the single reference/dummy logic. `app_state=[count]`,
+- **`CounterLogic`** — the minimal reference/dummy logic. `app_state=[count]`,
   `public_input=[step]`; increments with **checked `u128`** arithmetic (audit finding
   #1: no felt wraparound). **Immutable**: `step` always returns its own class hash and
   ignores any extra `public_input`, so a shard on this logic can never change logic
   (only `count` evolves). No reference logic ships an upgrade path (audit finding #2);
   an upgradeable logic would return a *different*, self-gated successor from `step`.
+- **`PrivateClaimLogic`** — a richer immutable example. `app_state` is
+  `[total_claimed, n, account_0, allocation_0, claimed_0, ...]`; `public_input` is
+  `[claimant]`. A successful transition proves the claimant is in the private table,
+  has not claimed yet, and receives exactly its allocation. The allowlist,
+  non-claimants, and unclaimed allocations remain unpublished; outputs are
+  `[claimant, allocation, total_claimed_after]`.
 
 ## Class hashes (this build)
 
@@ -90,10 +96,11 @@ freezing it is what makes a shard's logic-immutability guarantee real.
 |-------|------|
 | `ConfidentialShard` | `0x57e64f78bccd4ccecfc18b8f86d31a7739f17432cdbbb50b05ace9b0e231144` |
 | `CounterLogic` | `0x4c5c6dcbf512c0e1caf1a72e12f5d94b38d38818391cec90ecf3f26f7b331e8` |
+| `PrivateClaimLogic` | `0x2164b09fa1b2215e42acb359bc9ec75d18505f0f5c3d57c049bfffa79f0157` |
 
 ## Build & test
 
 ```bash
 scarb build            # compiles (3 classes)
-snforge test           # tests not yet written — see ../project/STATUS.md
+snforge test           # 11 tests
 ```

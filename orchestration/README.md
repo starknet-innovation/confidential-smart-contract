@@ -1,7 +1,7 @@
 # Orchestration — generic framework SDK
 
-Drives the confidential shard framework off-chain. **Logic-agnostic:** the counter is
-just one example (`src/examples/counter.ts`); swap in another `Example` to drive a
+Drives the confidential shard framework off-chain. **Logic-agnostic:** the counter and
+private claim are examples (`src/examples/*.ts`); swap in another `Example` to drive a
 different application through the same framework.
 
 ```
@@ -12,7 +12,9 @@ src/
 ├── strkd.ts              # strkd wallet-companion client (pair, fund, declare, signAndProve, addInvoke)
 ├── rpc.ts                # read-only RPC helpers + class-hash / RPC-contract-class builders
 ├── examples/
-│   └── counter.ts        # the counter as ONE Example — immutable dummy (app_state=[count]; public_input=[step])
+│   ├── types.ts          # generic Example interface consumed by the driver
+│   ├── counter.ts        # immutable dummy (app_state=[count]; public_input=[step])
+│   └── private_claim.ts  # confidential allowlist claim (private table; public_input=[claimant])
 └── orchestrate.ts        # generic driver, parameterized by an Example (counter wired in main())
 ```
 
@@ -42,6 +44,7 @@ export function myExample(logicClassHash: bigint): Example {
     logicClassHash,
     genesisState: (salt) => ({ logicClassHash, appState: /* encode initial state */ [], salt }),
     buildPublicInput: (action) => /* encode action */ [],
+    nextState: (prev, action, newSalt) => /* mirror ILogic::step */ prev,
     describe: (s) => /* human view */ "",
   };
 }

@@ -24,6 +24,31 @@ tx hashes, or [[memory]] items where useful.
 
 ---
 
+## 2026-07-07 — Add private claim example
+
+**Did:** Added `PrivateClaimLogic`, an immutable confidential allowlist-claim example:
+`app_state=[total_claimed, n, account, allocation, claimed, ...]`, public input
+`[claimant]`, outputs `[claimant, allocation, total_claimed_after]`. Added logic tests
+for eligible claim, double-claim rejection, missing claimant, and checked `u128` total
+overflow; added a framework dispatch/message test. Extracted the TypeScript `Example`
+interface to `examples/types.ts` and added `examples/private_claim.ts`.
+
+**Why / decisions:** Chose private claim because it showcases the framework's current
+capability cleanly: the sensitive data is committed private state, while the action can
+remain public. This avoids pretending the framework has a separate private action
+payload (needed for examples like sealed bids).
+
+**Blockers / surprises:** Local SSH cloning failed because the SSH agent could not sign;
+HTTPS clone worked. `npm run typecheck` initially lacked installed dependencies; `npm
+install` resolved it.
+
+**State after:** `scarb build` clean; **11 snforge tests pass**; orchestration
+`npm run typecheck` clean. Current class hashes: `ConfidentialShard 0x57e64f78...`,
+`CounterLogic 0x4c5c6dcb...`, `PrivateClaimLogic 0x2164b09f...`.
+
+**Next:** Fresh Sepolia deploy of the framework with the example logics; prove/apply a
+private-claim transition to demonstrate the richer state shape on-chain.
+
 ## 2026-07-02 — Fix audit finding #2 (ungated reference upgrade)
 
 **Did:** Removed the upgrade path from the reference counter — `CounterLogic` is now an

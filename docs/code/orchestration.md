@@ -1,7 +1,7 @@
 # Orchestration
 
 > The off-chain client that drives the framework's SNIP-36 flow. It is **generic**:
-> the counter is one example plugged into a logic-agnostic SDK. Lives in
+> the counter and private claim are examples plugged into a logic-agnostic SDK. Lives in
 > `orchestration/`. For the Cairo it targets see [`cairo.md`](./cairo.md).
 
 ## Layout
@@ -11,7 +11,9 @@
 | `src/framework.ts` | Generic SDK. `commit`, `transitionCalldata`, `serialize/decodePublicMessage`, `computeMessageHash`, `checkProof`. Encodings are byte-identical to `src/framework.cairo`. |
 | `src/strkd.ts` | `strkd` wallet-companion client (pair, fund, deploy account, declare, `signAndProve`, `waitProof`, `addInvoke`). |
 | `src/rpc.ts` | Read-only RPC helpers + `classHashOf` / `rpcContractClass` (canonical spaced ABI). |
+| `src/examples/types.ts` | Generic `Example` contract consumed by the driver. |
 | `src/examples/counter.ts` | The counter as one `Example` — an immutable dummy (app_state `[count]`; public_input `[step]`). |
+| `src/examples/private_claim.ts` | Confidential allowlist claim `Example` (private claim table; public_input `[claimant]`). |
 | `src/orchestrate.ts` | Generic driver parameterized by an `Example`; `runTransition(...)` is the reusable core. |
 
 ## Flow (per transition)
@@ -32,8 +34,9 @@ logic class is a prerequisite** — the prover `library_call`s it.
 
 Write an `ILogic` Cairo class, declare it, and add an `Example` (see
 `orchestration/README.md` for the shape). Pass it to the driver instead of
-`counterExample`; `framework.ts` never changes. That is the point of the refactor —
-the counter is not special.
+`counterExample`; `framework.ts` never changes. `privateClaimExample` shows the richer
+case where the committed app state is a private table and the public input only names
+the claimant.
 
 ## Non-negotiables (unchanged from v1)
 

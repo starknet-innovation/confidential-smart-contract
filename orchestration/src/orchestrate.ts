@@ -17,7 +17,8 @@ import { hash as snhash } from "starknet";
 import * as fw from "./framework.ts";
 import { Strkd, hex, type ResourceBounds, type Call } from "./strkd.ts";
 import * as rpc from "./rpc.ts";
-import { counterExample, type Example } from "./examples/counter.ts";
+import { counterExample } from "./examples/counter.ts";
+import type { Example } from "./examples/types.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const artifact = (name: string) => resolve(__dirname, `../../target/dev/confidential_counter_${name}.contract_class.json`);
