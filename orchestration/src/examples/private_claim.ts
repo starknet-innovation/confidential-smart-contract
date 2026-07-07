@@ -1,10 +1,15 @@
 // Private-claim example for the confidential shard framework.
 //
-// app_state = [total_claimed, n, account_0, allocation_0, claimed_0, ...].
+// app_state = [total_claimed, n, account_0, allocation_0, claimed_0, ...] — exactly
+//             HEADER_LEN + n * ROW_WIDTH felts.
 // public_input = [claimant].
 //
 // The allowlist table stays in private_input; the public output of a successful proof is
-// [claimant, allocation, total_claimed_after].
+// [claimant, allocation, total_claimed_after] (so a claim reveals the claimant + amount).
+//
+// `nextState` is the off-chain MIRROR of src/logics/private_claim_logic.cairo::step and
+// MUST stay row-for-row identical: same first-match rule, same length check, same
+// successor layout. Keep ROW_WIDTH / HEADER_LEN in sync across both files.
 
 import type { ShardState } from "../framework.ts";
 import type { Example } from "./types.ts";
@@ -45,6 +50,9 @@ export function privateClaimExample(logicClassHash: bigint, rows: ClaimRow[], to
     nextState: (prev, action, newSalt) => {
       const claimant = (action as PrivateClaimAction).claimant;
       const n = Number(prev.appState[1]);
+      if (prev.appState.length !== HEADER_LEN + n * ROW_WIDTH) {
+        throw new Error("bad state length");
+      }
       const nextAppState = [...prev.appState];
 
       for (let i = 0; i < n; i += 1) {

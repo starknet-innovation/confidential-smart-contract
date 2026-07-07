@@ -8,7 +8,7 @@ proof and compare-and-swaps the anchor. Validium-style, but confidential.
 **Status:** v1 (monolithic counter) ✅ **verified end-to-end on Sepolia (2026-07-02)**. **v2**
 is a generic framework — a frozen dispatcher + **confidential pluggable logic** (the governing
 logic's class hash lives inside the committed state). It **compiles** (Scarb/Cairo 2.18), has a
-**generic orchestration SDK**, **11 passing snforge tests**, and a **clean deep audit** (0
+**generic orchestration SDK**, **16 passing snforge tests**, and a **clean deep audit** (0
 Critical/High; both findings fixed — per-transition salt rotation + immutable reference
 logics). **Pending a fresh Sepolia deploy** (see [status](docs/project/STATUS.md)).
 

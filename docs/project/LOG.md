@@ -33,6 +33,16 @@ for eligible claim, double-claim rejection, missing claimant, and checked `u128`
 overflow; added a framework dispatch/message test. Extracted the TypeScript `Example`
 interface to `examples/types.ts` and added `examples/private_claim.ts`.
 
+**Review hardening (same day):** Made `step` a single pass over the rows (was find +
+rebuild), claiming only the FIRST matching row, and added an `app_state` length check
+(`2 + 3n`, else revert). Mirrored the length check in `private_claim.ts` so the off-chain
+`nextState` stays row-for-row identical to the Cairo `step` — previously the two diverged
+for duplicate accounts / over-length state, which would break the pre-broadcast `new_root`
+check. Added Cairo tests (first-row claim, only-first-duplicate, two-claim accumulation,
+empty-table + bad-length reverts) and an orchestration `npm test` suite
+(`private_claim.test.ts`) asserting the TS mirror against the Cairo vectors. Documented
+the privacy boundary (a claim reveals claimant + amount). Class hash changed accordingly.
+
 **Why / decisions:** Chose private claim because it showcases the framework's current
 capability cleanly: the sensitive data is committed private state, while the action can
 remain public. This avoids pretending the framework has a separate private action
@@ -42,9 +52,10 @@ payload (needed for examples like sealed bids).
 HTTPS clone worked. `npm run typecheck` initially lacked installed dependencies; `npm
 install` resolved it.
 
-**State after:** `scarb build` clean; **11 snforge tests pass**; orchestration
-`npm run typecheck` clean. Current class hashes: `ConfidentialShard 0x57e64f78...`,
-`CounterLogic 0x4c5c6dcb...`, `PrivateClaimLogic 0x2164b09f...`.
+**State after:** `scarb build` clean; **16 snforge tests pass**; orchestration
+`npm run typecheck` + `npm test` (7 parity tests) clean. Current class hashes:
+`ConfidentialShard 0x57e64f78...`, `CounterLogic 0x4c5c6dcb...`,
+`PrivateClaimLogic 0x6f11d271...`.
 
 **Next:** Fresh Sepolia deploy of the framework with the example logics; prove/apply a
 private-claim transition to demonstrate the richer state shape on-chain.

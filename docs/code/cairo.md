@@ -84,11 +84,16 @@ freezing it is what makes a shard's logic-immutability guarantee real.
   (only `count` evolves). No reference logic ships an upgrade path (audit finding #2);
   an upgradeable logic would return a *different*, self-gated successor from `step`.
 - **`PrivateClaimLogic`** — a richer immutable example. `app_state` is
-  `[total_claimed, n, account_0, allocation_0, claimed_0, ...]`; `public_input` is
-  `[claimant]`. A successful transition proves the claimant is in the private table,
-  has not claimed yet, and receives exactly its allocation. The allowlist,
-  non-claimants, and unclaimed allocations remain unpublished; outputs are
-  `[claimant, allocation, total_claimed_after]`.
+  `[total_claimed, n, account_0, allocation_0, claimed_0, ...]` (exactly `2 + 3n` felts;
+  a malformed length reverts); `public_input` is `[claimant]`. A successful transition
+  proves the claimant is in the private table, has not claimed yet, and receives exactly
+  its allocation; only the **first** matching row is claimed and `total_claimed` is
+  trusted as committed (genesis consistency is the deployer's job). The allowlist,
+  non-claimants, and unclaimed allocations remain unpublished. **Privacy boundary:**
+  outputs are `[claimant, allocation, total_claimed_after]`, so each claim *does* reveal
+  the claimant's identity and exact amount on-chain — confidentiality covers the untouched
+  table, not the individual claim. The off-chain mirror
+  (`orchestration/src/examples/private_claim.ts`) must reproduce `step` row-for-row.
 
 ## Class hashes (this build)
 
@@ -96,11 +101,11 @@ freezing it is what makes a shard's logic-immutability guarantee real.
 |-------|------|
 | `ConfidentialShard` | `0x57e64f78bccd4ccecfc18b8f86d31a7739f17432cdbbb50b05ace9b0e231144` |
 | `CounterLogic` | `0x4c5c6dcbf512c0e1caf1a72e12f5d94b38d38818391cec90ecf3f26f7b331e8` |
-| `PrivateClaimLogic` | `0x2164b09fa1b2215e42acb359bc9ec75d18505f0f5c3d57c049bfffa79f0157` |
+| `PrivateClaimLogic` | `0x6f11d271f0b0e24c0d11fbfcba1ca99bff84138c97310437019e0d9a792788` |
 
 ## Build & test
 
 ```bash
 scarb build            # compiles (3 classes)
-snforge test           # 11 tests
+snforge test           # 16 tests
 ```

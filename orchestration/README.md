@@ -14,7 +14,8 @@ src/
 ├── examples/
 │   ├── types.ts          # generic Example interface consumed by the driver
 │   ├── counter.ts        # immutable dummy (app_state=[count]; public_input=[step])
-│   └── private_claim.ts  # confidential allowlist claim (private table; public_input=[claimant])
+│   ├── private_claim.ts  # confidential allowlist claim (private table; public_input=[claimant])
+│   └── private_claim.test.ts  # node:test parity check: nextState ↔ Cairo step vectors
 └── orchestrate.ts        # generic driver, parameterized by an Example (counter wired in main())
 ```
 
@@ -52,6 +53,10 @@ export function myExample(logicClassHash: bigint): Example {
 
 Pass it to the driver instead of `counterExample`. `framework.ts` never changes.
 
+Because `nextState` must mirror your Cairo `step` exactly (the pre-broadcast `new_root`
+check depends on it), add a `*.test.ts` next to your example asserting the mirror against
+the same vectors your Cairo tests use — see `examples/private_claim.test.ts`.
+
 ## Non-negotiables
 
 - **Never fee-estimate the virtual or proof-carrying tx** — set `resource_bounds` manually.
@@ -66,6 +71,7 @@ Pass it to the driver instead of `counterExample`. `framework.ts` never changes.
 cp .env.example .env      # fill strkd URL/token, account, salt
 npm install
 npm run typecheck         # tsc --noEmit
+npm test                  # node --test: example ↔ Cairo parity (private_claim.test.ts)
 npm run orchestrate       # prints genesis/address; drive the strkd steps (each prompts)
 ```
 

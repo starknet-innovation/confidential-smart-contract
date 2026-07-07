@@ -4,8 +4,8 @@
 > [`PROCESS.md`](./PROCESS.md). History is in [`LOG.md`](./LOG.md).
 
 **Last updated:** 2026-07-07
-**Phase:** Generic framework implemented, tested (11 snforge tests pass), audited (deep, both findings fixed), and given a generic orchestration SDK with counter + private-claim examples. v1 verified on Sepolia. Framework not yet deployed.
-**One-line state:** Frozen framework + confidential pluggable logic; compiles, 11 tests pass, deep audit = 0 Critical/High and **both findings FIXED** (per-transition salt rotation; immutable reference logics — no ungated upgrade ships). Next: a fresh Sepolia deploy.
+**Phase:** Generic framework implemented, tested (16 snforge tests pass + orchestration parity tests), audited (deep, both findings fixed), and given a generic orchestration SDK with counter + private-claim examples. v1 verified on Sepolia. Framework not yet deployed.
+**One-line state:** Frozen framework + confidential pluggable logic; compiles, 16 tests pass, deep audit = 0 Critical/High and **both findings FIXED** (per-transition salt rotation; immutable reference logics — no ungated upgrade ships). Next: a fresh Sepolia deploy.
 
 ---
 
@@ -18,7 +18,7 @@
 - [x] Reference logic: `CounterLogic` — an **immutable** dummy, checked `u128` (addresses finding #1); ships no upgrade path (addresses finding #2). (`ImmutableCounterLogic` merged away — now redundant.)
 - [x] Reference logic: `PrivateClaimLogic` — an **immutable confidential allowlist claim** example. Private state carries `[total_claimed, n, account, allocation, claimed, ...]`; public input is `[claimant]`; outputs are `[claimant, allocation, total_claimed_after]`.
 - [x] **Generic orchestration SDK** (`orchestration/src/`): `framework.ts` (logic-agnostic commit/calldata/message), `strkd.ts`, `rpc.ts`, `examples/types.ts`, `examples/counter.ts`, `examples/private_claim.ts`, `orchestrate.ts` driver. Typecheck clean; v1 `.mjs` scripts removed.
-- [x] **snforge tests — 11 passing**: `CounterLogic` `step` (increment/self-perpetuate, immutability, u128-overflow revert) + `PrivateClaimLogic` `step` (eligible claim, double-claim rejection, missing-claimant rejection, u128-overflow revert) + framework `transition` (commit determinism + `library_call` dispatch + message + salt rotation + immutability-through-the-framework + private-claim dispatch + zero-salt rejection).
+- [x] **snforge tests — 16 passing**: `CounterLogic` `step` (increment/self-perpetuate, immutability, u128-overflow revert) + `PrivateClaimLogic` `step` (eligible claim, first-row claim, double-claim rejection, missing-claimant rejection, empty-table rejection, bad-state-length rejection, only-first-duplicate-claimed, two-claim accumulation, u128-overflow revert) + framework `transition` (commit determinism + `library_call` dispatch + message + salt rotation + immutability-through-the-framework + private-claim dispatch + zero-salt rejection). Off-chain parity locked by orchestration `npm test` (`private_claim.test.ts` mirrors the Cairo vectors).
 - [x] **Fixed both audit findings** — #1 salt reuse (per-transition rotation) and #2 ungated reference upgrade (`CounterLogic` made immutable); see Open audit findings.
 - [x] **Deep re-audit of the framework** — 0 Critical/High; findings below. Confirmed: `library_call` can't spoof `from_address`, sole-emitter holds (`proof_facts[7]==1`), logic is commitment-pinned (not from public_input), framework is frozen. v1 finding #2 (app-logic binding) closed by the commitment.
 
@@ -53,6 +53,6 @@
 |-------|------|
 | `ConfidentialShard` | `0x57e64f78bccd4ccecfc18b8f86d31a7739f17432cdbbb50b05ace9b0e231144` |
 | `CounterLogic` | `0x4c5c6dcbf512c0e1caf1a72e12f5d94b38d38818391cec90ecf3f26f7b331e8` |
-| `PrivateClaimLogic` | `0x2164b09fa1b2215e42acb359bc9ec75d18505f0f5c3d57c049bfffa79f0157` |
+| `PrivateClaimLogic` | `0x6f11d271f0b0e24c0d11fbfcba1ca99bff84138c97310437019e0d9a792788` |
 
 **v1 monolithic deployment (Sepolia, historical):** contract `0x285b651f…`, class `0x7c0bbb31…`, account `0x04078aa8…` (see [`LOG.md`](./LOG.md)).

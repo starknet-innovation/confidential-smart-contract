@@ -6,7 +6,8 @@
   "description": "Generic orchestration SDK for the confidential shard framework. The counter is one example (src/examples/counter.ts).",
   "scripts": {
     "orchestrate": "node --experimental-strip-types src/orchestrate.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test 'src/**/*.test.ts'"
   },
   "dependencies": {
     "starknet": "^9.0.0"
