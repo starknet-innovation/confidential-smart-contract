@@ -7,10 +7,18 @@ proof and compare-and-swaps the anchor. Validium-style, but confidential.
 
 **Status:** v1 (monolithic counter) ✅ **verified end-to-end on Sepolia (2026-07-02)**. **v2**
 is a generic framework — a frozen dispatcher + **confidential pluggable logic** (the governing
-logic's class hash lives inside the committed state). It **compiles** (Scarb/Cairo 2.18), has a
-**generic orchestration SDK**, **6 passing snforge tests**, and a **clean deep audit** (0
-Critical/High; both findings fixed — per-transition salt rotation + an immutable reference
-logic). **Pending a fresh Sepolia deploy** (see [status](docs/project/STATUS.md)).
+logic's class hash lives inside the committed state). **v3** adds **public interaction**: a
+transition can **read public state** and trigger **public calls** (e.g. move ERC-20s) through a
+pull-based **outbox** (`apply_transition` records → permissionless `consume` executes). **v4**
+adds the **inbox** — the public → shard dual: trustlessly-attributed `deposit`s and
+`register_intent`s that the confidential logic observes via proven reads — plus `outbox_of`
+settlement observability, a per-shard freshness gate (default off), and an indexable DA
+channel; the reference outbox app is **`CommitteeLogic`** (a confidential M-of-N committee
+whose threshold-approved decisions emit arbitrary public calls, approvals verified in-proof).
+It **compiles** (Scarb/Cairo 2.18), has a **generic orchestration SDK** and **25 passing
+snforge tests**. Both the v2 and the **v3+v4 deep audits were clean** (0 Critical/High; the
+v3+v4 pass surfaced 3 below-threshold notes, all now fixed or documented); a fresh Sepolia
+deploy is pending (see [status](docs/project/STATUS.md)).
 
 ---
 
@@ -39,7 +47,7 @@ confidential-smart-contract/
 ├── README.md                 # ← you are here: the navigation hub
 ├── DESIGN.md                 # architecture (source of truth)
 ├── Scarb.toml                # Cairo package
-├── src/                      # Cairo: framework (ConfidentialShard) + pluggable logics + types
+├── src/                      # Cairo: framework (ConfidentialShard) + pluggable logics + outbox + types
 ├── orchestration/            # off-chain client (TypeScript / Node, strkd flow)
 └── docs/
     ├── code/                 # documentation of the code
@@ -110,7 +118,7 @@ accurate.
 
 ```bash
 scarb build                          # compile the Cairo contract (Scarb/Cairo 2.18)
-snforge test                         # unit tests — see STATUS.md (not written yet)
+snforge test                         # 25 tests
 cd orchestration && npm install      # off-chain client deps
 ```
 

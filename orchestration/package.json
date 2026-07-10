@@ -1,9 +1,10 @@
 {
-  "name": "confidential-shard-orchestration",
-  "version": "0.2.0",
+  "name": "confidential-shard-sdk",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
-  "description": "Generic orchestration SDK for the confidential shard framework. The counter is one example (src/examples/counter.ts).",
+  "description": "TypeScript SDK for the confidential shard framework: write a typed Logic<State,Action>, get a Shard lifecycle handle over a pluggable backend. Counter + committee are reference apps (src/apps/).",
+  "main": "src/index.ts",
   "scripts": {
     "orchestrate": "node --experimental-strip-types src/orchestrate.ts",
     "typecheck": "tsc --noEmit"

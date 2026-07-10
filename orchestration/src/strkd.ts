@@ -4,11 +4,15 @@
 //
 // Discover the base URL from the companion (GET /) and pass it + a persisted token in.
 
+import { hex, type Call } from "./encoding.ts";
+
 export const SN_SEPOLIA = "0x534e5f5345504f4c4941";
 const CLIENT = "confidential-shard-orchestrator";
 
 export class Strkd {
-  constructor(private url: string, private token?: string) {}
+  private url: string;
+  private token?: string;
+  constructor(url: string, token?: string) { this.url = url; this.token = token; }
 
   private async rpc(method: string, params: unknown, auth = true): Promise<any> {
     const headers: Record<string, string> = { "Content-Type": "application/json", "X-Companion-Client": CLIENT };
@@ -69,11 +73,12 @@ export class Strkd {
     });
 }
 
-export type Call = { contract_address: string; entry_point_selector: string; calldata: string[] };
 export type ResourceBounds = {
   l1_gas: { max_amount: string; max_price_per_unit: string };
   l2_gas: { max_amount: string; max_price_per_unit: string };
   l1_data_gas: { max_amount: string; max_price_per_unit: string };
 };
 
-export const hex = (n: bigint) => "0x" + n.toString(16);
+// `Call` and `hex` live in ./encoding.ts (the neutral core); re-export for back-compat.
+export { hex };
+export type { Call };

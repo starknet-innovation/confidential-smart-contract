@@ -12,7 +12,7 @@
 
 #[starknet::contract]
 pub mod CounterLogic {
-    use crate::interfaces::ILogic;
+    use crate::interfaces::{ILogic, PublicCall};
 
     #[storage]
     struct Storage {}
@@ -24,7 +24,7 @@ pub mod CounterLogic {
             logic_class_hash: felt252,
             app_state: Array<felt252>,
             public_input: Array<felt252>,
-        ) -> (felt252, Array<felt252>, Array<felt252>) {
+        ) -> (felt252, Array<felt252>, Array<felt252>, Array<PublicCall>) {
             // Bounded arithmetic (audit finding #1): checked u128 add reverts on overflow
             // instead of wrapping felt252.
             let count: u128 = (*app_state.at(0)).try_into().expect('count not u128');
@@ -33,7 +33,9 @@ pub mod CounterLogic {
 
             // IMMUTABLE: always self-perpetuate. The successor is always this same class
             // hash, regardless of any extra public_input — there is no upgrade path.
-            (logic_class_hash, array![new_count.into()], array![step_amt.into()])
+            // Pure & effect-free: no public actions (empty outbox bundle).
+            let no_actions: Array<PublicCall> = array![];
+            (logic_class_hash, array![new_count.into()], array![step_amt.into()], no_actions)
         }
     }
 }
