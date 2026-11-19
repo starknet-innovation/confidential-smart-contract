@@ -2,6 +2,7 @@
 name = "confidential_counter"
 version = "0.1.0"
 edition = "2024_07"
+license = "Apache-2.0"
 
 [dependencies]
 openzeppelin_utils = "2.0.0"
@@ -13,6 +14,10 @@ assert_macros = "2.18.0"
 
 [scripts]
 test = "snforge test"
+
+# Compiler warnings fail the build, locally and in CI.
+[cairo]
+allow-warnings = false
 
 [tool.scarb]
 allow-prebuilt-plugins = ["snforge_std"]

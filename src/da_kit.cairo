@@ -31,7 +31,9 @@ pub fn seal(
 /// Recipient `index` recovers the state from a blob with their private scalar (reverts on a
 /// bad tag). This is the Cairo mirror of the off-chain decrypt (used by tests); parties
 /// normally open off-chain and check `commit(state) == new_root`.
-pub fn open(blob: Span<felt252>, recipient_priv: felt252, index: u32, nonce: felt252) -> Array<felt252> {
+pub fn open(
+    blob: Span<felt252>, recipient_priv: felt252, index: u32, nonce: felt252,
+) -> Array<felt252> {
     crypto_kit::ecies_decrypt(blob, recipient_priv, index, nonce)
 }
 

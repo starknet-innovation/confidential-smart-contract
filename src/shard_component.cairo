@@ -24,19 +24,21 @@
 #[starknet::component]
 pub mod ShardComponent {
     use core::poseidon::poseidon_hash_span;
-    use starknet::{ContractAddress, get_contract_address, get_caller_address, get_block_info};
-    use starknet::syscalls::{
-        send_message_to_l1_syscall, get_execution_info_v3_syscall, call_contract_syscall,
-    };
-    use starknet::SyscallResultTrait;
     use starknet::storage::{
-        StoragePointerReadAccess, StoragePointerWriteAccess, Map, StorageMapReadAccess,
-        StorageMapWriteAccess, StoragePathEntry, Vec, VecTrait, MutableVecTrait,
+        Map, MutableVecTrait, StorageMapReadAccess, StorageMapWriteAccess, StoragePathEntry,
+        StoragePointerReadAccess, StoragePointerWriteAccess, Vec, VecTrait,
+    };
+    use starknet::syscalls::{
+        call_contract_syscall, get_execution_info_v3_syscall, send_message_to_l1_syscall,
+    };
+    use starknet::{
+        ContractAddress, SyscallResultTrait, get_block_info, get_caller_address,
+        get_contract_address,
     };
     use crate::interfaces::{
-        IShard, ShardState, PublicMessage, PublicCall, InboxEntry, INBOX_KIND_DEPOSIT,
-        INBOX_KIND_INTENT, ILogicLibraryDispatcher, ILogicDispatcherTrait, IERC20Dispatcher,
-        IERC20DispatcherTrait,
+        IERC20Dispatcher, IERC20DispatcherTrait, ILogicDispatcherTrait, ILogicLibraryDispatcher,
+        INBOX_KIND_DEPOSIT, INBOX_KIND_INTENT, IShard, InboxEntry, PublicCall, PublicMessage,
+        ShardState,
     };
 
     const PROOF_FACTS_N_MSG_INDEX: usize = 7;
@@ -152,7 +154,9 @@ pub mod ShardComponent {
         }
 
         fn consume(
-            ref self: ComponentState<TContractState>, entry_key: felt252, actions: Array<PublicCall>,
+            ref self: ComponentState<TContractState>,
+            entry_key: felt252,
+            actions: Array<PublicCall>,
         ) {
             let stored = self.outbox.read(entry_key);
             assert(stored != 0, 'nothing to consume');
@@ -162,7 +166,7 @@ pub mod ShardComponent {
             for a in actions {
                 assert(a.to != this, 'self-call');
                 call_contract_syscall(a.to, a.selector, a.calldata.span()).unwrap_syscall();
-            };
+            }
             self.emit(OutboxConsumed { entry_key });
         }
 
@@ -214,7 +218,7 @@ pub mod ShardComponent {
             while i != n {
                 data.append(vec.at(i).read());
                 i += 1;
-            };
+            }
             InboxEntry {
                 kind: self.inbox_kind.read(seq),
                 caller: self.inbox_caller.read(seq),
@@ -267,7 +271,7 @@ pub mod ShardComponent {
             let mut vec = self.inbox_data.entry(seq);
             for x in data {
                 vec.push(x);
-            };
+            }
             self.inbox_size.write(seq + 1);
             self.emit(InboxAppended { seq, kind, caller });
         }
@@ -280,7 +284,7 @@ pub mod ShardComponent {
         let mut data: Array<felt252> = array![logic_class_hash, app_state.len().into()];
         for x in app_state.span() {
             data.append(*x);
-        };
+        }
         poseidon_hash_span(data.span())
     }
 
@@ -296,7 +300,7 @@ pub mod ShardComponent {
         let mut data: Array<felt252> = array![from.into(), MSG_TO_ADDRESS, payload.len().into()];
         for f in payload.span() {
             data.append(*f);
-        };
+        }
         poseidon_hash_span(data.span())
     }
 }

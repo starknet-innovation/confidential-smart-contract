@@ -48,6 +48,7 @@ confidential-smart-contract/
 ├── DESIGN.md                 # architecture (source of truth)
 ├── Scarb.toml                # Cairo package
 ├── src/                      # Cairo: framework (ConfidentialShard) + pluggable logics + outbox + types
+├── tests/                    # snforge suites: unit/ and acceptance/, declared in lib.cairo
 ├── orchestration/            # off-chain client (TypeScript / Node, strkd flow)
 └── docs/
     ├── code/                 # documentation of the code
@@ -117,8 +118,10 @@ accurate.
 ## Quick start
 
 ```bash
-scarb build                          # compile the Cairo contract (Scarb/Cairo 2.18)
-snforge test                         # 25 tests
+scarb fmt --check                    # the four Cairo gates; versions pinned in .tool-versions
+scarb lint --test --deny-warnings
+scarb build                          # compile the Cairo contract (warnings are errors)
+snforge test                         # suites under tests/unit and tests/acceptance
 cd orchestration && npm install      # off-chain client deps
 ```
 

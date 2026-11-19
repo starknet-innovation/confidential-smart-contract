@@ -12,10 +12,7 @@ pub trait IMockERC20<TContractState> {
     fn balance_of(self: @TContractState, account: ContractAddress) -> u256;
     fn transfer(ref self: TContractState, recipient: ContractAddress, amount: u256) -> bool;
     fn transfer_from(
-        ref self: TContractState,
-        sender: ContractAddress,
-        recipient: ContractAddress,
-        amount: u256,
+        ref self: TContractState, sender: ContractAddress, recipient: ContractAddress, amount: u256,
     ) -> bool;
     fn set_balance(ref self: TContractState, bal: u256);
     /// Fee (absolute, in token units) deducted from each `transfer_from` credit — models

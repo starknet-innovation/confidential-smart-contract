@@ -21,8 +21,8 @@ pub trait IMockToken<TState> {
 
 #[starknet::contract]
 pub mod MockToken {
-    use starknet::{ContractAddress, get_caller_address};
     use starknet::storage::{Map, StorageMapReadAccess, StorageMapWriteAccess};
+    use starknet::{ContractAddress, get_caller_address};
 
     #[storage]
     struct Storage {

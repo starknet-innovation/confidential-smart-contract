@@ -53,13 +53,12 @@ pub struct MemberSig {
 
 #[starknet::contract]
 pub mod CommitteeLogic {
-    use core::hash::{HashStateTrait, HashStateExTrait};
-    use core::poseidon::PoseidonTrait;
-    use core::poseidon::poseidon_hash_span;
-    use starknet::{ContractAddress, get_contract_address, get_tx_info};
+    use core::hash::{HashStateExTrait, HashStateTrait};
+    use core::poseidon::{PoseidonTrait, poseidon_hash_span};
     use openzeppelin_utils::cryptography::snip12::{StarknetDomain, StructHash};
+    use starknet::{ContractAddress, get_contract_address, get_tx_info};
     use crate::interfaces::{ILogic, PublicCall};
-    use super::{ISRC6DispatcherTrait, ISRC6Dispatcher, MemberSig};
+    use super::{ISRC6Dispatcher, ISRC6DispatcherTrait, MemberSig};
 
     /// SNIP-12 type hash of the approval message. Pinned from starknet.js
     /// (`typedData.getTypeHash`) for the type
@@ -138,7 +137,7 @@ pub mod CommitteeLogic {
                 assert(is_member(@app_state, n_members, signer_felt), 'not a member');
                 for prev in seen.span() {
                     assert(*prev != signer_felt, 'duplicate signer');
-                };
+                }
                 // Per-member SNIP-12 hash (folds in the signer), verified by the member's
                 // own account — AA-native: any signature scheme the account supports.
                 let hash = approval_message_hash(shard.into(), nonce, calls_hash, signer);
@@ -147,7 +146,7 @@ pub mod CommitteeLogic {
                 assert(ok == VALID, 'bad signature');
                 seen.append(signer_felt);
                 valid += 1;
-            };
+            }
             assert(valid >= threshold, 'threshold not met');
 
             // --- successor: nonce advances, committee unchanged, logic immutable ---
@@ -156,7 +155,7 @@ pub mod CommitteeLogic {
             while i != app_state.len() {
                 new_app_state.append(*app_state.at(i));
                 i += 1;
-            };
+            }
 
             // No outputs: the actions are the (eventual) public effect; the decision
             // stays in the commitment.
@@ -202,7 +201,7 @@ pub mod CommitteeLogic {
                 break;
             }
             i += 1;
-        };
+        }
         found
     }
 }
