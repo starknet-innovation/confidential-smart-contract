@@ -4,7 +4,7 @@
 //! realistic-size encryption's l2_gas (the [PASS] line) anchors the in-circuit cost.
 
 use confidential_counter::crypto_kit::{
-    pubkey_x, shared_key_enc, shared_key_dec, ephemeral_pub, ecies_encrypt, ecies_decrypt,
+    ecies_decrypt, ecies_encrypt, ephemeral_pub, pubkey_x, shared_key_dec, shared_key_enc,
 };
 
 #[test]
@@ -53,7 +53,7 @@ fn rejects_tampered_ciphertext() {
             bad.append(*blob.at(i));
         }
         i += 1;
-    };
+    }
     ecies_decrypt(bad.span(), priv, 0, 1);
 }
 
@@ -89,7 +89,7 @@ fn realistic_state_cost() {
         msg.append(i * 7 + 3);
         i += 1;
         k += 1;
-    };
+    }
     let recips = array![pubkey_x(0xA1), pubkey_x(0xB2), pubkey_x(0xC3)];
     let blob = ecies_encrypt(msg.span(), recips.span(), 0xEEEE, 42);
     // header 4 + 3*(20+1) = 67 felts

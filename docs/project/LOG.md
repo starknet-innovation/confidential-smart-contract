@@ -24,6 +24,25 @@ tx hashes, or [[memory]] items where useful.
 
 ---
 
+## 2026-11-19 — Tier 1 hygiene baseline for the Cairo package
+
+**Did:** Pinned Scarb 2.18.0 and Starknet Foundry 0.60.0 in `.tool-versions`; made compiler
+warnings fatal; added a CI workflow running format, lint, build and test; moved the suites to
+`tests/unit/` (crypto_kit, logic_kit) and `tests/acceptance/` (framework, lending, logics,
+register), declared from `tests/lib.cairo`; added `CONTRIBUTING.md`, `CODEOWNERS`, an opt-in
+pre-commit hook and a Tier 1 section in `AGENTS.md`. Formatted the package (it did not pass
+`scarb fmt --check` before) and switched 24 declare/deploy `unwrap` calls in the tests to
+`unwrap_syscall`, as the linter requires.
+**Why / decisions:** Same gates locally and in CI before others contribute. No assertion was
+changed and 53 tests pass before and after. Source changes are formatting only: the Sierra
+program, ABI and entry points of all ten contracts are identical to a build of the previous
+commit. `orchestration/` is deliberately out of scope.
+**Blockers / surprises:** With suites in subdirectories and no `tests/lib.cairo`, `snforge test`
+reports 0 tests and still exits 0, so every new suite must be declared there. The repository has
+no licence file; that is the owner's decision and is left open.
+**State after:** Cairo gates enforced in CI. STATUS.md date bumped; no roadmap item changes.
+**Next:** Choose a licence; decide whether `orchestration/` gets its own gates.
+
 ## 2026-07-10 — Deep audit of the v5 stack + lending audit fixes
 
 **Did:** Ran the cairo-auditor (deep, 5 agents) over the whole v5 stack, then verified + applied

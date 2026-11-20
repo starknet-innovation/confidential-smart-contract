@@ -2,18 +2,20 @@
 //! `unseen_inbox` is exercised against a real deployed ConfidentialShard so the
 //! proven-read cursor pattern is verified end-to-end.
 
-use snforge_std::{
-    declare, ContractClassTrait, DeclareResultTrait,
-    start_cheat_caller_address, stop_cheat_caller_address,
+use confidential_counter::interfaces::{INBOX_KIND_INTENT, IShardDispatcher, IShardDispatcherTrait};
+use confidential_counter::logic_kit::{
+    TRANSFER_SELECTOR, build_call, erc20_transfer_call, unseen_inbox,
 };
-use confidential_counter::logic_kit::{build_call, erc20_transfer_call, unseen_inbox, TRANSFER_SELECTOR};
-use confidential_counter::interfaces::{IShardDispatcher, IShardDispatcherTrait, INBOX_KIND_INTENT};
-use starknet::ContractAddress;
+use snforge_std::{
+    ContractClassTrait, DeclareResultTrait, declare, start_cheat_caller_address,
+    stop_cheat_caller_address,
+};
+use starknet::{ContractAddress, SyscallResultTrait};
 
 fn deploy_shard() -> IShardDispatcher {
-    let fw = declare("ConfidentialShard").unwrap().contract_class();
+    let fw = declare("ConfidentialShard").unwrap_syscall().contract_class();
     // (genesis_root, freshness_window, intent_fee_token, intent_fee amount low/high) — gates off.
-    let (addr, _) = fw.deploy(@array![0x1, 0, 0, 0, 0]).unwrap();
+    let (addr, _) = fw.deploy(@array![0x1, 0, 0, 0, 0]).unwrap_syscall();
     IShardDispatcher { contract_address: addr }
 }
 

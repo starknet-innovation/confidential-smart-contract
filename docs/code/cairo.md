@@ -195,7 +195,7 @@ contract, no storage, no trust surface). Import à la carte from `crate::logic_k
 skeleton implementing `ILogic::step`: it walks the five steps (decode state/input, validate,
 emit actions, consume inbox, return successor) with example snippets. Copy it, rename, fill
 in, then mirror your `app_state` / `public_input` layout in a TS `Logic<State, Action>`
-(`orchestration/src/apps/*.ts`). The kit is covered by `tests/logic_kit.cairo`.
+(`orchestration/src/apps/*.ts`). The kit is covered by `tests/unit/logic_kit.cairo`.
 
 ## Reusable kits (importable modules — not components; stateless, like OZ `snip12`)
 

@@ -3,7 +3,7 @@
 > Current-state snapshot: what's done, in flight, next, risks. Keep current — see
 > [`PROCESS.md`](./PROCESS.md). History is in [`LOG.md`](./LOG.md).
 
-**Last updated:** 2026-07-10
+**Last updated:** 2026-11-19
 **Phase:** **Framework v5 + component refactor + reusable kits (2026-07-10).** The framework's
 guts are a `#[starknet::component]` `ShardComponent`; `ConfidentialShard` is a thin frozen
 embedder (upgradeability = opt-in fork, never the blessed contract). **v5 removed the framework
@@ -29,7 +29,7 @@ cycle ran end-to-end on Sepolia (v4, historical). Purpose: **showcase** (see DES
 - [x] **v2 generic framework** (`ConfidentialShard`) — frozen dispatcher + logic-agnostic verifier; confidential `logic_class_hash` in the committed state; `library_call` to the committed logic; self-governing upgrades + immutability ratchet.
 - [x] Reference logic: `CounterLogic` — an **immutable** dummy, checked `u128`; ships no upgrade path.
 - [x] **TypeScript SDK** (`orchestration/src/`, `confidential-shard-sdk` 0.3.0): typed generic `Logic<State,Action>` (`logic.ts`) as the app-author boundary; `Shard<S,A>` lifecycle handle (`shard.ts`: `deployShard`/`attachShard`/`genesisOf`, one `.transition(action)` runs prove→pre-check→apply→consume + advances typed state, plus `deposit`/`registerIntent`); **pluggable `ShardBackend`** (`backend.ts`) with `StrkdBackend` reference impl (`strkd-backend.ts`, owns nonce/ref-block/manual-bounds); pure `encoding.ts` core (byte-identical to Cairo); `apps/counter.ts` + `apps/committee.ts` references; `index.ts` barrel. Runs under `node --experimental-strip-types` (no build step). Typecheck clean; pure-core smoke test passes. **Validated on-chain (2026-07-06):** drove the committee outbox demo end-to-end via `attachShard` + `Shard.transition`. Fixed a read-RPC race (`confirmRoot` now polls the post-apply root instead of a single immediate read).
-- [x] **Cairo authoring kit** (`src/logic_kit.cairo` + `src/logics/template_logic.cairo`) — pure helpers (`build_call`, `erc20_transfer_call`, `unseen_inbox` proven-read) + a commented `ILogic` skeleton to copy. Not part of the frozen framework; covered by `tests/logic_kit.cairo`.
+- [x] **Cairo authoring kit** (`src/logic_kit.cairo` + `src/logics/template_logic.cairo`) — pure helpers (`build_call`, `erc20_transfer_call`, `unseen_inbox` proven-read) + a commented `ILogic` skeleton to copy. Not part of the frozen framework; covered by `tests/unit/logic_kit.cairo`.
 - [x] **v3 public interaction (outbox)** — transitions **read public state** (proven against the SNIP-36 reference block) and emit **public calls**: `apply_transition` records `poseidon(Serde(actions))` to the outbox; permissionless one-shot `consume` re-supplies + hash-checks + dispatches. Root advances regardless of settlement. See [`../../DESIGN.md`](../../DESIGN.md) "Public interaction (v3)".
 - [x] **Fixed both audit findings** — #1 salt reuse (per-transition rotation), #2 ungated reference upgrade (`CounterLogic` made immutable).
 - [x] **Deep re-audit of the framework (v2, pre-v3)** — 0 Critical/High. Confirmed: `library_call` can't spoof `from_address`, sole-emitter holds, logic is commitment-pinned, framework is frozen.

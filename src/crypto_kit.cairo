@@ -68,7 +68,7 @@ pub fn encrypt(key: felt252, nonce: felt252, msg: Span<felt252>) -> Array<felt25
         ct.append(*msg.at(i) + keystream(key, nonce, j));
         j += 1;
         i += 1;
-    };
+    }
     ct
 }
 
@@ -80,7 +80,7 @@ pub fn decrypt(key: felt252, nonce: felt252, ct: Span<felt252>) -> Array<felt252
         msg.append(*ct.at(i) - keystream(key, nonce, j));
         j += 1;
         i += 1;
-    };
+    }
     msg
 }
 
@@ -88,7 +88,7 @@ pub fn mac(key: felt252, nonce: felt252, ct: Span<felt252>) -> felt252 {
     let mut data: Array<felt252> = array![MAC_DOMAIN, key, nonce];
     for c in ct {
         data.append(*c);
-    };
+    }
     poseidon_hash_span(data.span())
 }
 
@@ -106,10 +106,10 @@ pub fn ecies_encrypt(
         let tag = mac(key, nonce, ct.span());
         for c in ct.span() {
             out.append(*c);
-        };
+        }
         out.append(tag);
         i += 1;
-    };
+    }
     out
 }
 
@@ -127,7 +127,7 @@ pub fn ecies_decrypt(
     while k != len {
         ct.append(*blob.at(base + k));
         k += 1;
-    };
+    }
     assert(mac(key, nonce, ct.span()) == *blob.at(base + len), 'bad tag');
     decrypt(key, nonce, ct.span())
 }

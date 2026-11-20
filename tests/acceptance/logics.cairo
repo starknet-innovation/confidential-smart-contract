@@ -6,29 +6,27 @@
 //! `get_contract_address()` inside the logic is the LOGIC's own address; the tests
 //! mirror that as the `shard` field of the approval.)
 
-use snforge_std::{
-    declare, ContractClassTrait, DeclareResultTrait, start_cheat_chain_id_global,
-};
+use confidential_counter::interfaces::{ILogicDispatcher, ILogicDispatcherTrait, PublicCall};
+use confidential_counter::logics::committee_logic::{CommitteeLogic, MemberSig};
+use core::poseidon::poseidon_hash_span;
 use snforge_std::signature::KeyPairTrait;
 use snforge_std::signature::stark_curve::{StarkCurveKeyPairImpl, StarkCurveSignerImpl};
-use confidential_counter::interfaces::{ILogicDispatcher, ILogicDispatcherTrait, PublicCall};
-use confidential_counter::logics::committee_logic::{MemberSig, CommitteeLogic};
-use core::poseidon::poseidon_hash_span;
-use starknet::ContractAddress;
+use snforge_std::{ContractClassTrait, DeclareResultTrait, declare, start_cheat_chain_id_global};
+use starknet::{ContractAddress, SyscallResultTrait};
 
 /// Known chain_id the tests pin so signing matches `get_tx_info()` inside the logic.
 const TEST_CHAIN_ID: felt252 = 'TESTCHAIN';
 
 fn deploy(name: ByteArray) -> ILogicDispatcher {
-    let contract = declare(name).unwrap().contract_class();
-    let (addr, _) = contract.deploy(@array![]).unwrap();
+    let contract = declare(name).unwrap_syscall().contract_class();
+    let (addr, _) = contract.deploy(@array![]).unwrap_syscall();
     ILogicDispatcher { contract_address: addr }
 }
 
 /// Deploy a SNIP-6 MockAccount holding `public_key`; returns its address (a committee member).
 fn deploy_member(public_key: felt252) -> ContractAddress {
-    let cls = declare("MockAccount").unwrap().contract_class();
-    let (addr, _) = cls.deploy(@array![public_key]).unwrap();
+    let cls = declare("MockAccount").unwrap_syscall().contract_class();
+    let (addr, _) = cls.deploy(@array![public_key]).unwrap_syscall();
     addr
 }
 
@@ -93,7 +91,9 @@ fn approve(
     nonce: felt252,
     calls: @Array<PublicCall>,
 ) -> MemberSig {
-    let hash = CommitteeLogic::approval_message_hash(shard.into(), nonce, calls_hash(calls), member);
+    let hash = CommitteeLogic::approval_message_hash(
+        shard.into(), nonce, calls_hash(calls), member,
+    );
     let (r, s) = kp.sign(hash).unwrap();
     MemberSig { signer: member, signature: array![r, s] }
 }
@@ -115,7 +115,9 @@ fn approval_hash_matches_offchain_snip12() {
     let shard: felt252 = 0x6bb61654c22e728c5efc9ed74053e4b7caaedb5e43e08ae445b4507f2bbd36;
     let signer: ContractAddress = 0x1234.try_into().unwrap();
     let h = CommitteeLogic::approval_message_hash(shard, 5, 0xabc, signer);
-    assert(h == 0x94ebc827404e59db9147d33e976e3bab805e36273fb5ff22ca80cb20d552fa, 'snip12 mismatch');
+    assert(
+        h == 0x94ebc827404e59db9147d33e976e3bab805e36273fb5ff22ca80cb20d552fa, 'snip12 mismatch',
+    );
 }
 
 #[test]
@@ -133,9 +135,7 @@ fn committee_executes_threshold_approved_calls() {
     let app_state = array![0, 2, 3, m1.into(), m2.into(), m3.into(), 0x5EED];
 
     let calls = mk_calls();
-    let sigs = array![
-        approve(kp1, m1, shard, 0, @calls), approve(kp2, m2, shard, 0, @calls),
-    ];
+    let sigs = array![approve(kp1, m1, shard, 0, @calls), approve(kp2, m2, shard, 0, @calls)];
 
     let (next, new_state, outputs, actions) = logic
         .step(0x77, app_state, mk_public_input(@calls, sigs));
@@ -184,9 +184,7 @@ fn committee_rejects_duplicate_signer() {
 
     let calls = mk_calls();
     // Same member twice must not reach the threshold.
-    let sigs = array![
-        approve(kp1, m1, shard, 0, @calls), approve(kp1, m1, shard, 0, @calls),
-    ];
+    let sigs = array![approve(kp1, m1, shard, 0, @calls), approve(kp1, m1, shard, 0, @calls)];
     logic.step(0x77, app_state, mk_public_input(@calls, sigs));
 }
 

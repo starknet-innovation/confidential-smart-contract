@@ -4,14 +4,19 @@
 //! `outputs` (the sealed blob), then `da_kit::open`s it. Also checks the sealed state commits
 //! to `new_root` (v5: poseidon(logic, app_state), no salt) — so a party can self-prove.
 
-use snforge_std::{declare, ContractClassTrait, DeclareResultTrait};
-use confidential_counter::interfaces::{ILogicDispatcher, ILogicDispatcherTrait};
 use confidential_counter::crypto_kit::pubkey_x;
 use confidential_counter::da_kit;
+use confidential_counter::interfaces::{ILogicDispatcher, ILogicDispatcherTrait};
 use core::poseidon::poseidon_hash_span;
+use snforge_std::{ContractClassTrait, DeclareResultTrait, declare};
+use starknet::SyscallResultTrait;
 
 fn deploy() -> ILogicDispatcher {
-    let (addr, _) = declare("PrivateRegisterLogic").unwrap().contract_class().deploy(@array![]).unwrap();
+    let (addr, _) = declare("PrivateRegisterLogic")
+        .unwrap_syscall()
+        .contract_class()
+        .deploy(@array![])
+        .unwrap_syscall();
     ILogicDispatcher { contract_address: addr }
 }
 
@@ -20,7 +25,7 @@ fn commit(logic: felt252, app_state: Span<felt252>) -> felt252 {
     let mut data: Array<felt252> = array![logic, app_state.len().into()];
     for x in app_state {
         data.append(*x);
-    };
+    }
     poseidon_hash_span(data.span())
 }
 
@@ -48,7 +53,10 @@ fn seals_state_and_each_party_recovers_it() {
     assert(opened_b == expected, 'party B recovers state');
 
     // A party can now self-prove: the recovered state commits to what a v5 shard anchors.
-    assert(commit(0x77, opened_a.span()) == commit(0x77, new_state.span()), 'recovered commits to root');
+    assert(
+        commit(0x77, opened_a.span()) == commit(0x77, new_state.span()),
+        'recovered commits to root',
+    );
 }
 
 #[test]
@@ -57,7 +65,8 @@ fn non_party_cannot_decrypt() {
     let logic = deploy();
     let (key_a, key_b) = (pubkey_x(0xA11CE), pubkey_x(0xB0B));
     let app_state = array![0, 0x1111, 0x5EED, 2, key_a, key_b];
-    let (_next, _new_state, outputs, _actions) = logic.step(0x77, app_state, array![0x2222, 0x9999]);
+    let (_next, _new_state, outputs, _actions) = logic
+        .step(0x77, app_state, array![0x2222, 0x9999]);
     // An outsider's key yields a wrong shared secret → MAC rejects.
     da_kit::open(outputs.span(), 0xDEAD, 0, 1);
 }

@@ -10,7 +10,7 @@
 //! `src/logics/committee_logic.cairo` for a real outbox logic.
 
 use starknet::ContractAddress;
-use crate::interfaces::{PublicCall, InboxEntry, IShardDispatcher, IShardDispatcherTrait};
+use crate::interfaces::{IShardDispatcher, IShardDispatcherTrait, InboxEntry, PublicCall};
 
 /// ERC-20 `transfer(recipient, amount: u256)` entry-point selector (sn_keccak).
 pub const TRANSFER_SELECTOR: felt252 = selector!("transfer");
@@ -25,7 +25,9 @@ pub fn build_call(to: ContractAddress, selector: felt252, calldata: Array<felt25
 /// The most common outbox action: move `amount` of `token` from the shard to `recipient`.
 /// The shard must already HOLD the tokens (e.g. received via `deposit`). Calldata is the
 /// standard `transfer(recipient, amount)` = `[recipient, amount.low, amount.high]`.
-pub fn erc20_transfer_call(token: ContractAddress, recipient: ContractAddress, amount: u256) -> PublicCall {
+pub fn erc20_transfer_call(
+    token: ContractAddress, recipient: ContractAddress, amount: u256,
+) -> PublicCall {
     let mut calldata: Array<felt252> = array![];
     Serde::serialize(@recipient, ref calldata);
     Serde::serialize(@amount, ref calldata);
@@ -46,6 +48,6 @@ pub fn unseen_inbox(shard: ContractAddress, seen: u64) -> Array<InboxEntry> {
     while seq != len {
         out.append(dispatcher.inbox_entry(seq));
         seq += 1;
-    };
+    }
     out
 }

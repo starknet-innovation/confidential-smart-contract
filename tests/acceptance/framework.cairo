@@ -15,21 +15,21 @@
 //! outbox directly with `store` + `map_entry_address` to test `consume` (exactly what
 //! apply_transition would have written).
 
-use snforge_std::{
-    declare, ContractClassTrait, DeclareResultTrait, spy_messages_to_l1,
-    MessageToL1SpyAssertionsTrait, MessageToL1, store, map_entry_address,
-    start_cheat_caller_address, stop_cheat_caller_address, start_cheat_chain_id_global,
-};
-use snforge_std::signature::KeyPairTrait;
-use snforge_std::signature::stark_curve::{StarkCurveKeyPairImpl, StarkCurveSignerImpl};
 use confidential_counter::interfaces::{
-    IShardDispatcher, IShardDispatcherTrait, ShardState, PublicCall, INBOX_KIND_DEPOSIT,
-    INBOX_KIND_INTENT,
+    INBOX_KIND_DEPOSIT, INBOX_KIND_INTENT, IShardDispatcher, IShardDispatcherTrait, PublicCall,
+    ShardState,
 };
-use confidential_counter::logics::committee_logic::{MemberSig, CommitteeLogic};
+use confidential_counter::logics::committee_logic::{CommitteeLogic, MemberSig};
 use confidential_counter::mocks::erc20_mock::{IMockERC20Dispatcher, IMockERC20DispatcherTrait};
 use core::poseidon::poseidon_hash_span;
-use starknet::ContractAddress;
+use snforge_std::signature::KeyPairTrait;
+use snforge_std::signature::stark_curve::{StarkCurveKeyPairImpl, StarkCurveSignerImpl};
+use snforge_std::{
+    ContractClassTrait, DeclareResultTrait, MessageToL1, MessageToL1SpyAssertionsTrait, declare,
+    map_entry_address, spy_messages_to_l1, start_cheat_caller_address, start_cheat_chain_id_global,
+    stop_cheat_caller_address, store,
+};
+use starknet::{ContractAddress, SyscallResultTrait};
 
 /// Known chain_id the tests pin so the approval-hash mirror matches `get_tx_info()`.
 const TEST_CHAIN_ID: felt252 = 'TESTCHAIN';
@@ -38,7 +38,7 @@ fn commit(logic_class_hash: felt252, app_state: Span<felt252>) -> felt252 {
     let mut data: Array<felt252> = array![logic_class_hash, app_state.len().into()];
     for x in app_state {
         data.append(*x);
-    };
+    }
     poseidon_hash_span(data.span())
 }
 
@@ -58,8 +58,8 @@ fn calls_hash(calls: @Array<PublicCall>) -> felt252 {
 
 /// Deploy a SNIP-6 MockAccount (committee member) holding `public_key`.
 fn deploy_member(public_key: felt252) -> ContractAddress {
-    let cls = declare("MockAccount").unwrap().contract_class();
-    let (addr, _) = cls.deploy(@array![public_key]).unwrap();
+    let cls = declare("MockAccount").unwrap_syscall().contract_class();
+    let (addr, _) = cls.deploy(@array![public_key]).unwrap_syscall();
     addr
 }
 
@@ -71,7 +71,9 @@ fn approve(
     nonce: felt252,
     calls: @Array<PublicCall>,
 ) -> MemberSig {
-    let hash = CommitteeLogic::approval_message_hash(shard.into(), nonce, calls_hash(calls), member);
+    let hash = CommitteeLogic::approval_message_hash(
+        shard.into(), nonce, calls_hash(calls), member,
+    );
     let (r, s) = kp.sign(hash).unwrap();
     MemberSig { signer: member, signature: array![r, s] }
 }
@@ -85,26 +87,26 @@ fn deploy_shard() -> IShardDispatcher {
 fn deploy_shard_with(
     freshness_window: u64, fee_token: ContractAddress, fee_amount: u256,
 ) -> IShardDispatcher {
-    let fw = declare("ConfidentialShard").unwrap().contract_class();
+    let fw = declare("ConfidentialShard").unwrap_syscall().contract_class();
     let calldata = array![
         0x1, // genesis_root
-        freshness_window.into(),
-        fee_token.into(),
-        fee_amount.low.into(),
+        freshness_window.into(), fee_token.into(), fee_amount.low.into(),
         fee_amount.high.into(),
     ];
-    let (addr, _) = fw.deploy(@calldata).unwrap();
+    let (addr, _) = fw.deploy(@calldata).unwrap_syscall();
     IShardDispatcher { contract_address: addr }
 }
 
 fn deploy_mock_erc20(balance: u256) -> IMockERC20Dispatcher {
-    let contract = declare("MockERC20").unwrap().contract_class();
-    let (addr, _) = contract.deploy(@array![balance.low.into(), balance.high.into()]).unwrap();
+    let contract = declare("MockERC20").unwrap_syscall().contract_class();
+    let (addr, _) = contract
+        .deploy(@array![balance.low.into(), balance.high.into()])
+        .unwrap_syscall();
     IMockERC20Dispatcher { contract_address: addr }
 }
 
 fn logic_hash(name: ByteArray) -> felt252 {
-    let cc = declare(name).unwrap().contract_class();
+    let cc = declare(name).unwrap_syscall().contract_class();
     (*cc.class_hash).into()
 }
 
@@ -215,14 +217,14 @@ fn transition_dispatches_committee_and_carries_actions() {
     let mut app_state: Array<felt252> = array![0, 2, 3];
     for m in members.span() {
         app_state.append(*m);
-    };
+    }
     app_state.append(seed);
     let expected_old = commit(logic_class_hash, app_state.span());
     // Successor: nonce -> 1, committee + seed unchanged, same logic (immutable).
     let mut next_app_state: Array<felt252> = array![1, 2, 3];
     for m in members.span() {
         next_app_state.append(*m);
-    };
+    }
     next_app_state.append(seed);
     let expected_new = commit(logic_class_hash, next_app_state.span());
 
@@ -288,7 +290,8 @@ fn consume_rejects_double_consume() {
     let entry_key = 0x1;
     let mk = || array![
         PublicCall {
-            to: mock.contract_address, selector: selector!("transfer"),
+            to: mock.contract_address,
+            selector: selector!("transfer"),
             calldata: array![0xBEEF, 10, 0],
         },
     ];
@@ -306,7 +309,8 @@ fn consume_rejects_hash_mismatch() {
     let entry_key = 0x2;
     let recorded = array![
         PublicCall {
-            to: mock.contract_address, selector: selector!("transfer"),
+            to: mock.contract_address,
+            selector: selector!("transfer"),
             calldata: array![0xBEEF, 10, 0],
         },
     ];
@@ -315,7 +319,8 @@ fn consume_rejects_hash_mismatch() {
     // Supply DIFFERENT actions (amount 999) — the recomputed hash won't match.
     let tampered = array![
         PublicCall {
-            to: mock.contract_address, selector: selector!("transfer"),
+            to: mock.contract_address,
+            selector: selector!("transfer"),
             calldata: array![0xBEEF, 999, 0],
         },
     ];
@@ -370,7 +375,7 @@ fn register_intent_rejects_oversized_payload() {
     while i != 65 { // cap is 64
         payload.append(i.into());
         i += 1;
-    };
+    }
     shard.register_intent(payload);
 }
 

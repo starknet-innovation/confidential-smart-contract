@@ -1,0 +1,6 @@
+#!/bin/sh
+# Checks the staged snapshot, not the working tree. Never fixes or stages files.
+set -eu
+root=$(git rev-parse --show-toplevel)
+: "${ENGINEERING_PRACTICES_ROOT:?Set ENGINEERING_PRACTICES_ROOT to the shared tooling checkout}"
+exec python3 "$ENGINEERING_PRACTICES_ROOT/tools/baseline.py" staged --root "$root"

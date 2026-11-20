@@ -21,8 +21,8 @@
 
 #[starknet::contract]
 pub mod PrivateRegisterLogic {
-    use crate::interfaces::{ILogic, PublicCall};
     use crate::da_kit;
+    use crate::interfaces::{ILogic, PublicCall};
 
     #[storage]
     struct Storage {}
@@ -51,7 +51,7 @@ pub mod PrivateRegisterLogic {
                 new_app_state.append(key);
                 party_keys.append(key);
                 i += 1;
-            };
+            }
 
             // Seal the successor state to every party — proven in-circuit, so the published
             // ciphertext IS the committed state (no garbage broadcast possible).

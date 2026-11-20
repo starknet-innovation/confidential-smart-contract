@@ -1,0 +1,19 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Both setup actions read the exact versions from .tool-versions.
+      - uses: software-mansion/setup-scarb@v1
+      - uses: foundry-rs/setup-snfoundry@v4
+      - run: scarb fmt --check
+      - run: scarb lint --test --deny-warnings
+      - run: scarb build
+      - run: snforge test

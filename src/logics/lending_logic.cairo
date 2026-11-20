@@ -50,13 +50,12 @@ pub trait IPriceOracle<TState> {
 
 #[starknet::contract]
 pub mod LendingLogic {
-    use core::hash::{HashStateTrait, HashStateExTrait};
-    use core::poseidon::PoseidonTrait;
-    use core::poseidon::poseidon_hash_span;
-    use starknet::{ContractAddress, get_contract_address, get_block_timestamp, get_tx_info};
+    use core::hash::{HashStateExTrait, HashStateTrait};
+    use core::poseidon::{PoseidonTrait, poseidon_hash_span};
     use openzeppelin_utils::cryptography::snip12::{StarknetDomain, StructHash};
+    use starknet::{ContractAddress, get_block_timestamp, get_contract_address, get_tx_info};
     use crate::interfaces::{
-        ILogic, PublicCall, InboxEntry, INBOX_KIND_DEPOSIT, IERC20Dispatcher, IERC20DispatcherTrait,
+        IERC20Dispatcher, IERC20DispatcherTrait, ILogic, INBOX_KIND_DEPOSIT, InboxEntry, PublicCall,
     };
     use crate::logic_kit::{erc20_transfer_call, unseen_inbox};
     use crate::logics::committee_logic::{ISRC6Dispatcher, ISRC6DispatcherTrait, MemberSig};
@@ -75,7 +74,8 @@ pub mod LendingLogic {
     /// SNIP-12 domain — MUST match the SDK's loanActionTypedData.
     const DOMAIN_NAME: felt252 = 'ConfShardLending';
     const DOMAIN_VERSION: felt252 = 1;
-    /// SNIP-12 type hash of `"LoanAction"("shard":"ContractAddress","nonce":"felt","action_digest":"felt")`
+    /// SNIP-12 type hash of
+    /// `"LoanAction"("shard":"ContractAddress","nonce":"felt","action_digest":"felt")`
     /// (pinned from starknet.js `typedData.getTypeHash`; a cross-check test asserts it).
     const LOAN_ACTION_TYPE_HASH: felt252 =
         0x9eceea84eec9f0761006fac5305b34611659b313105c4a5b316c5a2e3cafb7;
@@ -176,10 +176,10 @@ pub mod LendingLogic {
         let now: felt252 = get_block_timestamp().into();
 
         let new_state = array![
-            ACTIVE, *s.at(1), borrower.into(), *s.at(3), *s.at(4), *s.at(5),
-            *s.at(6), *s.at(7), *s.at(8), *s.at(9), *s.at(10), *s.at(11),
-            draw.low.into(), draw.high.into(), collateral.low.into(), collateral.high.into(),
-            now, new_seen, *s.at(18), nonce + 1, *s.at(20) // [20] = salt_kit seed (carried)
+            ACTIVE, *s.at(1), borrower.into(), *s.at(3), *s.at(4), *s.at(5), *s.at(6), *s.at(7),
+            *s.at(8), *s.at(9), *s.at(10), *s.at(11), draw.low.into(), draw.high.into(),
+            collateral.low.into(), collateral.high.into(), now, new_seen, *s.at(18), nonce + 1,
+            *s.at(20) // [20] = salt_kit seed (carried)
         ];
         let actions = array![erc20_transfer_call(loan_token, borrower, draw)];
         (logic_class_hash, new_state, array![], actions)
@@ -208,7 +208,10 @@ pub mod LendingLogic {
         // AUTH: any of {operator, lender, borrower} may trigger a settlement (the escape).
         let shard = get_contract_address();
         let signer = verify_auth(shard, nonce, OP_CLOSE, 0_u256, auth);
-        assert(signer == operator || signer == lender.into() || signer == borrower.into(), 'not authorized');
+        assert(
+            signer == operator || signer == lender.into() || signer == borrower.into(),
+            'not authorized',
+        );
 
         let owed = debt + debt * rate / BPS; // flat term interest
         let unlent = principal - debt;
@@ -245,9 +248,9 @@ pub mod LendingLogic {
         }
 
         let new_state = array![
-            CLOSED, *s.at(1), *s.at(2), *s.at(3), *s.at(4), *s.at(5), *s.at(6), *s.at(7),
-            *s.at(8), *s.at(9), *s.at(10), *s.at(11), *s.at(12), *s.at(13), *s.at(14),
-            *s.at(15), *s.at(16), *s.at(17), *s.at(18), nonce + 1, *s.at(20) // [20] = seed
+            CLOSED, *s.at(1), *s.at(2), *s.at(3), *s.at(4), *s.at(5), *s.at(6), *s.at(7), *s.at(8),
+            *s.at(9), *s.at(10), *s.at(11), *s.at(12), *s.at(13), *s.at(14), *s.at(15), *s.at(16),
+            *s.at(17), *s.at(18), nonce + 1, *s.at(20) // [20] = seed
         ];
         (logic_class_hash, new_state, array![], actions)
     }
@@ -255,9 +258,13 @@ pub mod LendingLogic {
     /// Verify a SNIP-12 loan-action signature via the signer account's SRC-6
     /// `is_valid_signature` (a proven read). Returns the signer as a felt for membership
     /// checks. `action_digest = poseidon(op, amount.low, amount.high)`.
-    fn verify_auth(shard: ContractAddress, nonce: felt252, op: felt252, amount: u256, auth: MemberSig) -> felt252 {
+    fn verify_auth(
+        shard: ContractAddress, nonce: felt252, op: felt252, amount: u256, auth: MemberSig,
+    ) -> felt252 {
         let MemberSig { signer, signature } = auth;
-        let action_digest = poseidon_hash_span(array![op, amount.low.into(), amount.high.into()].span());
+        let action_digest = poseidon_hash_span(
+            array![op, amount.low.into(), amount.high.into()].span(),
+        );
         let hash = loan_action_message_hash(shard.into(), nonce, action_digest, signer);
         let ok = ISRC6Dispatcher { contract_address: signer }.is_valid_signature(hash, signature);
         assert(ok == VALID, 'bad signature');
@@ -270,7 +277,10 @@ pub mod LendingLogic {
         shard: felt252, nonce: felt252, action_digest: felt252, signer: ContractAddress,
     ) -> felt252 {
         let domain = StarknetDomain {
-            name: DOMAIN_NAME, version: DOMAIN_VERSION, chain_id: get_tx_info().unbox().chain_id, revision: 1,
+            name: DOMAIN_NAME,
+            version: DOMAIN_VERSION,
+            chain_id: get_tx_info().unbox().chain_id,
+            revision: 1,
         };
         let message = LoanAction { shard, nonce, action_digest };
         PoseidonTrait::new()
@@ -301,9 +311,9 @@ pub mod LendingLogic {
             actions.append(erc20_transfer_call(loan_token, lender, bal));
         }
         let new_state = array![
-            CLOSED, *s.at(1), *s.at(2), *s.at(3), *s.at(4), *s.at(5), *s.at(6), *s.at(7),
-            *s.at(8), *s.at(9), *s.at(10), *s.at(11), *s.at(12), *s.at(13), *s.at(14),
-            *s.at(15), *s.at(16), *s.at(17), *s.at(18), nonce + 1, *s.at(20),
+            CLOSED, *s.at(1), *s.at(2), *s.at(3), *s.at(4), *s.at(5), *s.at(6), *s.at(7), *s.at(8),
+            *s.at(9), *s.at(10), *s.at(11), *s.at(12), *s.at(13), *s.at(14), *s.at(15), *s.at(16),
+            *s.at(17), *s.at(18), nonce + 1, *s.at(20),
         ];
         (logic_class_hash, new_state, array![], actions)
     }
@@ -327,7 +337,7 @@ pub mod LendingLogic {
                 }
             }
             i += 1;
-        };
+        }
         total
     }
 }
