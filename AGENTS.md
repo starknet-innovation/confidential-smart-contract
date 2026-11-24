@@ -25,10 +25,7 @@ Tool versions are pinned in `.tool-versions`. A missing or different tool is a f
 reason to skip a step. All four gates must pass before a change is handed over:
 
 ```sh
-scarb fmt --check
-scarb lint --test --deny-warnings
-scarb build
-snforge test
+./scripts/check.sh   # scarb fmt --check, lint with warnings denied, build, snforge test
 ```
 
 Compiler warnings are errors (`allow-warnings = false` in `Scarb.toml`). Never relax a gate,

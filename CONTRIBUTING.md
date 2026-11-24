@@ -14,16 +14,16 @@ way. `docs/project/PROCESS.md` explains how work is tracked and handed off.
 2. Open an issue describing the behaviour you want and how it should be tested.
 3. Create a branch. Add or change a test under `tests/unit/` or `tests/acceptance/`, then change
    `src/`. Declare any new test file in `tests/lib.cairo`, or it will not run.
-4. Run the gates:
+4. Run the checks:
 
    ```sh
-   scarb fmt --check
-   scarb lint --test --deny-warnings
-   scarb build
-   snforge test
+   ./scripts/check.sh
    ```
 
-5. Open a pull request. CI runs the same four commands. A code owner reviews before merge.
+   It runs `scarb fmt --check`, `scarb lint --test --deny-warnings`, `scarb build` and
+   `snforge test`, and fails if no test ran.
+
+5. Open a pull request. CI runs the same script. A code owner reviews before merge.
 
 A change to the frozen framework's interface, events, storage or commitment scheme must update
 `DESIGN.md` in the same pull request.
@@ -33,16 +33,16 @@ A change to the frozen framework's interface, events, storage or commitment sche
 `orchestration/` is outside the gates above and is not built by CI. Say in the pull request how
 you tested a change there.
 
-## Optional pre-commit hook
+## Pre-commit hook
 
-Maintainers use a pre-commit hook that checks the staged files with a shared tooling checkout.
-It is opt-in and needs that checkout, located through `ENGINEERING_PRACTICES_ROOT`:
+Turn it on once per clone. It runs `./scripts/check.sh --fast` (everything except the tests)
+before each commit:
 
 ```sh
 git config core.hooksPath .githooks
 ```
 
-Without the checkout, run the four commands above by hand. CI is the authority either way.
+CI is the authority either way.
 
 ## Security
 

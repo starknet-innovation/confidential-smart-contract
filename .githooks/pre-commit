@@ -1,6 +1,5 @@
 #!/bin/sh
-# Checks the staged snapshot, not the working tree. Never fixes or stages files.
+# Runs the fast checks before each commit. Enable with: git config core.hooksPath .githooks
 set -eu
-root=$(git rev-parse --show-toplevel)
-: "${ENGINEERING_PRACTICES_ROOT:?Set ENGINEERING_PRACTICES_ROOT to the shared tooling checkout}"
-exec python3 "$ENGINEERING_PRACTICES_ROOT/tools/baseline.py" staged --root "$root"
+cd "$(git rev-parse --show-toplevel)"
+exec ./scripts/check.sh --fast
